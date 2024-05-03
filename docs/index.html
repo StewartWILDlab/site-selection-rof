@@ -167,7 +167,9 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
    
   <ul>
   <li><a href="#loading-data" id="toc-loading-data" class="nav-link active" data-scroll-target="#loading-data">Loading data</a></li>
+  <li><a href="#plotting-spatial-data" id="toc-plotting-spatial-data" class="nav-link" data-scroll-target="#plotting-spatial-data">Plotting spatial data</a></li>
   <li><a href="#extracting-land-cover-data" id="toc-extracting-land-cover-data" class="nav-link" data-scroll-target="#extracting-land-cover-data">Extracting Land Cover data</a></li>
+  <li><a href="#results" id="toc-results" class="nav-link" data-scroll-target="#results">Results</a></li>
   </ul>
 </nav>
     </div>
@@ -195,384 +197,609 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 
 <section id="loading-data" class="level2">
 <h2 class="anchored" data-anchor-id="loading-data">Loading data</h2>
-<p>We load the possible sites (<code>quiet = TRUE</code> is for not displaying verbose loading information). We also load the two halves of the far north land cover dataset, along with the the attribute table of land cover classes.</p>
+<p>We load the possible sites (<code>quiet = TRUE</code> is for not displaying verbose loading information). We also load the two halves of the far north land cover dataset, along with the the attribute table of land cover classes. We load the ecodistrict data and select for the relevant lowlands disctrict, coded as 1028.</p>
 <div class="cell">
 <div class="sourceCode cell-code" id="cb1"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a>sites_possible <span class="ot">&lt;-</span> sf<span class="sc">::</span><span class="fu">st_read</span>(</span>
 <span id="cb1-2"><a href="#cb1-2" aria-hidden="true" tabindex="-1"></a>  <span class="st">"data/Peat/GRTS_PossibleCaARU_sample_draw_base.shp"</span>, </span>
 <span id="cb1-3"><a href="#cb1-3" aria-hidden="true" tabindex="-1"></a>  <span class="at">quiet =</span> <span class="cn">TRUE</span>)</span>
-<span id="cb1-4"><a href="#cb1-4" aria-hidden="true" tabindex="-1"></a>lu_16 <span class="ot">&lt;-</span> raster<span class="sc">::</span><span class="fu">raster</span>(<span class="st">"data/land_use/FarNorth_LandCover_Class_UTM16.tif"</span>)</span>
-<span id="cb1-5"><a href="#cb1-5" aria-hidden="true" tabindex="-1"></a>lu_17 <span class="ot">&lt;-</span> raster<span class="sc">::</span><span class="fu">raster</span>(<span class="st">"data/land_use/FarNorth_LandCover_Class_UTM17.tif"</span>)</span>
-<span id="cb1-6"><a href="#cb1-6" aria-hidden="true" tabindex="-1"></a>lu_dat <span class="ot">&lt;-</span> readr<span class="sc">::</span><span class="fu">read_csv</span>(<span class="st">"data/land_use/attr_table_northen_ont_lc.txt"</span>) <span class="sc">|&gt;</span></span>
-<span id="cb1-7"><a href="#cb1-7" aria-hidden="true" tabindex="-1"></a>  dplyr<span class="sc">::</span><span class="fu">mutate</span>(<span class="at">cats =</span> <span class="fu">as.factor</span>(code))</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<span id="cb1-4"><a href="#cb1-4" aria-hidden="true" tabindex="-1"></a>ecodistrict <span class="ot">&lt;-</span> sf<span class="sc">::</span><span class="fu">st_read</span>(</span>
+<span id="cb1-5"><a href="#cb1-5" aria-hidden="true" tabindex="-1"></a>  <span class="st">"data/ecodistrict_shp/Ecodistricts/ecodistricts.shp"</span>, </span>
+<span id="cb1-6"><a href="#cb1-6" aria-hidden="true" tabindex="-1"></a>  <span class="at">quiet =</span> <span class="cn">TRUE</span>) <span class="sc">|&gt;</span> </span>
+<span id="cb1-7"><a href="#cb1-7" aria-hidden="true" tabindex="-1"></a>  dplyr<span class="sc">::</span><span class="fu">filter</span>(ECODISTRIC <span class="sc">==</span> <span class="dv">1028</span>)</span>
+<span id="cb1-8"><a href="#cb1-8" aria-hidden="true" tabindex="-1"></a>lu_16 <span class="ot">&lt;-</span> raster<span class="sc">::</span><span class="fu">raster</span>(<span class="st">"data/land_use/FarNorth_LandCover_Class_UTM16.tif"</span>)</span>
+<span id="cb1-9"><a href="#cb1-9" aria-hidden="true" tabindex="-1"></a>lu_17 <span class="ot">&lt;-</span> raster<span class="sc">::</span><span class="fu">raster</span>(<span class="st">"data/land_use/FarNorth_LandCover_Class_UTM17.tif"</span>)</span>
+<span id="cb1-10"><a href="#cb1-10" aria-hidden="true" tabindex="-1"></a>lu_dat <span class="ot">&lt;-</span> readr<span class="sc">::</span><span class="fu">read_csv</span>(<span class="st">"data/land_use/attr_table_northen_ont_lc.txt"</span>) <span class="sc">|&gt;</span></span>
+<span id="cb1-11"><a href="#cb1-11" aria-hidden="true" tabindex="-1"></a>  dplyr<span class="sc">::</span><span class="fu">mutate</span>(<span class="at">cats =</span> <span class="fu">as.factor</span>(code))</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 </div>
+</section>
+<section id="plotting-spatial-data" class="level2">
+<h2 class="anchored" data-anchor-id="plotting-spatial-data">Plotting spatial data</h2>
+<p>It is always a good idea to try and plot spatial data before any processing.</p>
+<div class="cell">
+<div class="sourceCode cell-code" id="cb2"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb2-1"><a href="#cb2-1" aria-hidden="true" tabindex="-1"></a><span class="fu">ggplot</span>() <span class="sc">+</span></span>
+<span id="cb2-2"><a href="#cb2-2" aria-hidden="true" tabindex="-1"></a>  <span class="fu">geom_sf</span>(<span class="at">data =</span> ecodistrict) <span class="sc">+</span></span>
+<span id="cb2-3"><a href="#cb2-3" aria-hidden="true" tabindex="-1"></a>  <span class="fu">geom_sf</span>(<span class="at">data =</span> sf<span class="sc">::</span><span class="fu">st_transform</span>(sites_possible, </span>
+<span id="cb2-4"><a href="#cb2-4" aria-hidden="true" tabindex="-1"></a>                                  sf<span class="sc">::</span><span class="fu">st_crs</span>(ecodistrict))) <span class="sc">+</span></span>
+<span id="cb2-5"><a href="#cb2-5" aria-hidden="true" tabindex="-1"></a>  <span class="fu">theme_bw</span>()</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="cell-output-display">
+<div>
+<figure class="figure">
+<p><img src="index_files/figure-html/unnamed-chunk-3-1.png" class="img-fluid figure-img" data-fig-pos="H" width="1248"></p>
+</figure>
+</div>
+</div>
+</div>
+<p>Plotting the land cover data is difficult because it is provided is two different UTMs.</p>
 </section>
 <section id="extracting-land-cover-data" class="level2">
 <h2 class="anchored" data-anchor-id="extracting-land-cover-data">Extracting Land Cover data</h2>
-<p>The following functions will take care of land cover extraction.</p>
+<p>The following functions will take care of land cover extraction for sites.</p>
 <div class="cell">
-<div class="sourceCode cell-code" id="cb2"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb2-1"><a href="#cb2-1" aria-hidden="true" tabindex="-1"></a>extract_from_points <span class="ot">&lt;-</span> <span class="cf">function</span>(scale_m, sites, lu) {</span>
-<span id="cb2-2"><a href="#cb2-2" aria-hidden="true" tabindex="-1"></a>  </span>
-<span id="cb2-3"><a href="#cb2-3" aria-hidden="true" tabindex="-1"></a>  sites_buffer <span class="ot">&lt;-</span> sites <span class="sc">|&gt;</span></span>
-<span id="cb2-4"><a href="#cb2-4" aria-hidden="true" tabindex="-1"></a>    sf<span class="sc">::</span><span class="fu">st_transform</span>(sf<span class="sc">::</span><span class="fu">st_crs</span>(lu)) <span class="sc">|&gt;</span> </span>
-<span id="cb2-5"><a href="#cb2-5" aria-hidden="true" tabindex="-1"></a>    sf<span class="sc">::</span><span class="fu">st_buffer</span>(<span class="at">dist =</span> scale_m) <span class="sc">|&gt;</span> </span>
-<span id="cb2-6"><a href="#cb2-6" aria-hidden="true" tabindex="-1"></a>    dplyr<span class="sc">::</span><span class="fu">select</span>(siteID)</span>
-<span id="cb2-7"><a href="#cb2-7" aria-hidden="true" tabindex="-1"></a>  </span>
-<span id="cb2-8"><a href="#cb2-8" aria-hidden="true" tabindex="-1"></a>  extr <span class="ot">&lt;-</span> exactextractr<span class="sc">::</span><span class="fu">exact_extract</span>(lu, sites_buffer,</span>
-<span id="cb2-9"><a href="#cb2-9" aria-hidden="true" tabindex="-1"></a>                                       <span class="at">progress =</span> <span class="cn">FALSE</span>)</span>
-<span id="cb2-10"><a href="#cb2-10" aria-hidden="true" tabindex="-1"></a>  </span>
-<span id="cb2-11"><a href="#cb2-11" aria-hidden="true" tabindex="-1"></a>  extr <span class="ot">&lt;-</span> <span class="fu">mapply</span>(extr, <span class="dv">1</span><span class="sc">:</span><span class="fu">length</span>(extr), </span>
-<span id="cb2-12"><a href="#cb2-12" aria-hidden="true" tabindex="-1"></a>                 <span class="at">FUN =</span> \(x, y) dplyr<span class="sc">::</span><span class="fu">mutate</span>(x, <span class="at">id =</span> y),</span>
-<span id="cb2-13"><a href="#cb2-13" aria-hidden="true" tabindex="-1"></a>                 <span class="at">SIMPLIFY =</span> F)</span>
-<span id="cb2-14"><a href="#cb2-14" aria-hidden="true" tabindex="-1"></a>  </span>
-<span id="cb2-15"><a href="#cb2-15" aria-hidden="true" tabindex="-1"></a>  extr_df <span class="ot">&lt;-</span> <span class="fu">do.call</span>(rbind, extr) <span class="sc">|&gt;</span></span>
-<span id="cb2-16"><a href="#cb2-16" aria-hidden="true" tabindex="-1"></a>    dplyr<span class="sc">::</span><span class="fu">filter</span>(<span class="sc">!</span><span class="fu">is.na</span>(value)) <span class="sc">|&gt;</span></span>
-<span id="cb2-17"><a href="#cb2-17" aria-hidden="true" tabindex="-1"></a>    dplyr<span class="sc">::</span><span class="fu">relocate</span>(id)</span>
-<span id="cb2-18"><a href="#cb2-18" aria-hidden="true" tabindex="-1"></a>  </span>
-<span id="cb2-19"><a href="#cb2-19" aria-hidden="true" tabindex="-1"></a>  <span class="fu">return</span>(extr_df)</span>
-<span id="cb2-20"><a href="#cb2-20" aria-hidden="true" tabindex="-1"></a>   </span>
-<span id="cb2-21"><a href="#cb2-21" aria-hidden="true" tabindex="-1"></a>}</span>
-<span id="cb2-22"><a href="#cb2-22" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb2-23"><a href="#cb2-23" aria-hidden="true" tabindex="-1"></a>compute_land_cover <span class="ot">&lt;-</span> <span class="cf">function</span>(scale_m, sites, </span>
-<span id="cb2-24"><a href="#cb2-24" aria-hidden="true" tabindex="-1"></a>                               lu_16, lu_17, lu_dat) {</span>
-<span id="cb2-25"><a href="#cb2-25" aria-hidden="true" tabindex="-1"></a>  </span>
-<span id="cb2-26"><a href="#cb2-26" aria-hidden="true" tabindex="-1"></a>  extr_16_df <span class="ot">&lt;-</span> <span class="fu">extract_from_points</span>(scale_m, sites, lu_16)</span>
-<span id="cb2-27"><a href="#cb2-27" aria-hidden="true" tabindex="-1"></a>  extr_17_df <span class="ot">&lt;-</span> <span class="fu">extract_from_points</span>(scale_m, sites, lu_17)</span>
-<span id="cb2-28"><a href="#cb2-28" aria-hidden="true" tabindex="-1"></a>  </span>
-<span id="cb2-29"><a href="#cb2-29" aria-hidden="true" tabindex="-1"></a>  <span class="fu">stopifnot</span>(<span class="fu">all</span>(<span class="sc">!</span>(extr_16_df<span class="sc">$</span>siteID <span class="sc">%in%</span> extr_17_df<span class="sc">$</span>siteID)))</span>
-<span id="cb2-30"><a href="#cb2-30" aria-hidden="true" tabindex="-1"></a>  </span>
-<span id="cb2-31"><a href="#cb2-31" aria-hidden="true" tabindex="-1"></a>  extr <span class="ot">&lt;-</span> <span class="fu">rbind</span>(extr_16_df, extr_17_df) <span class="sc">|&gt;</span></span>
-<span id="cb2-32"><a href="#cb2-32" aria-hidden="true" tabindex="-1"></a>    dplyr<span class="sc">::</span><span class="fu">arrange</span>(id, value)</span>
-<span id="cb2-33"><a href="#cb2-33" aria-hidden="true" tabindex="-1"></a>  </span>
-<span id="cb2-34"><a href="#cb2-34" aria-hidden="true" tabindex="-1"></a>  extr_table <span class="ot">&lt;-</span> extr <span class="sc">|&gt;</span></span>
-<span id="cb2-35"><a href="#cb2-35" aria-hidden="true" tabindex="-1"></a>    dplyr<span class="sc">::</span><span class="fu">group_by</span>(id, value) <span class="sc">|&gt;</span></span>
-<span id="cb2-36"><a href="#cb2-36" aria-hidden="true" tabindex="-1"></a>    dplyr<span class="sc">::</span><span class="fu">summarise</span>(<span class="at">coverage_fraction_sum =</span> <span class="fu">sum</span>(coverage_fraction)) <span class="sc">|&gt;</span></span>
-<span id="cb2-37"><a href="#cb2-37" aria-hidden="true" tabindex="-1"></a>    dplyr<span class="sc">::</span><span class="fu">mutate</span>(<span class="at">props =</span> </span>
-<span id="cb2-38"><a href="#cb2-38" aria-hidden="true" tabindex="-1"></a>                    coverage_fraction_sum<span class="sc">/</span><span class="fu">sum</span>(coverage_fraction_sum)) <span class="sc">|&gt;</span></span>
-<span id="cb2-39"><a href="#cb2-39" aria-hidden="true" tabindex="-1"></a>    dplyr<span class="sc">::</span><span class="fu">ungroup</span>()  <span class="sc">|&gt;</span></span>
-<span id="cb2-40"><a href="#cb2-40" aria-hidden="true" tabindex="-1"></a>    dplyr<span class="sc">::</span><span class="fu">mutate</span>(<span class="at">value =</span> <span class="fu">as.factor</span>(value)) <span class="sc">|&gt;</span></span>
-<span id="cb2-41"><a href="#cb2-41" aria-hidden="true" tabindex="-1"></a>    dplyr<span class="sc">::</span><span class="fu">left_join</span>(lu_dat, <span class="at">by =</span> <span class="fu">c</span>(<span class="st">"value"</span> <span class="ot">=</span> <span class="st">"cats"</span>)) <span class="sc">|&gt;</span></span>
-<span id="cb2-42"><a href="#cb2-42" aria-hidden="true" tabindex="-1"></a>    dplyr<span class="sc">::</span><span class="fu">select</span>(id, category_code, props, label)</span>
-<span id="cb2-43"><a href="#cb2-43" aria-hidden="true" tabindex="-1"></a>  </span>
-<span id="cb2-44"><a href="#cb2-44" aria-hidden="true" tabindex="-1"></a>  extr_table[<span class="fu">is.na</span>(extr_table)] <span class="ot">&lt;-</span> <span class="dv">0</span></span>
-<span id="cb2-45"><a href="#cb2-45" aria-hidden="true" tabindex="-1"></a>  </span>
-<span id="cb2-46"><a href="#cb2-46" aria-hidden="true" tabindex="-1"></a>  extr_table_sum <span class="ot">&lt;-</span> extr_table <span class="sc">|&gt;</span></span>
-<span id="cb2-47"><a href="#cb2-47" aria-hidden="true" tabindex="-1"></a>    dplyr<span class="sc">::</span><span class="fu">group_by</span>(category_code, label) <span class="sc">|&gt;</span></span>
-<span id="cb2-48"><a href="#cb2-48" aria-hidden="true" tabindex="-1"></a>    dplyr<span class="sc">::</span><span class="fu">summarise</span>(<span class="at">prop_sum =</span> <span class="fu">sum</span>(props)) <span class="sc">|&gt;</span></span>
-<span id="cb2-49"><a href="#cb2-49" aria-hidden="true" tabindex="-1"></a>    dplyr<span class="sc">::</span><span class="fu">ungroup</span>()</span>
-<span id="cb2-50"><a href="#cb2-50" aria-hidden="true" tabindex="-1"></a>  </span>
-<span id="cb2-51"><a href="#cb2-51" aria-hidden="true" tabindex="-1"></a>  <span class="fu">return</span>(extr_table_sum)</span>
-<span id="cb2-52"><a href="#cb2-52" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb2-53"><a href="#cb2-53" aria-hidden="true" tabindex="-1"></a>}</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="sourceCode cell-code" id="cb3"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb3-1"><a href="#cb3-1" aria-hidden="true" tabindex="-1"></a>extract_from_points <span class="ot">&lt;-</span> <span class="cf">function</span>(scale_m, sites, lu) {</span>
+<span id="cb3-2"><a href="#cb3-2" aria-hidden="true" tabindex="-1"></a>  </span>
+<span id="cb3-3"><a href="#cb3-3" aria-hidden="true" tabindex="-1"></a>  sites_buffer <span class="ot">&lt;-</span> sites <span class="sc">|&gt;</span></span>
+<span id="cb3-4"><a href="#cb3-4" aria-hidden="true" tabindex="-1"></a>    sf<span class="sc">::</span><span class="fu">st_transform</span>(sf<span class="sc">::</span><span class="fu">st_crs</span>(lu)) <span class="sc">|&gt;</span> </span>
+<span id="cb3-5"><a href="#cb3-5" aria-hidden="true" tabindex="-1"></a>    sf<span class="sc">::</span><span class="fu">st_buffer</span>(<span class="at">dist =</span> scale_m) <span class="sc">|&gt;</span> </span>
+<span id="cb3-6"><a href="#cb3-6" aria-hidden="true" tabindex="-1"></a>    dplyr<span class="sc">::</span><span class="fu">select</span>(siteID)</span>
+<span id="cb3-7"><a href="#cb3-7" aria-hidden="true" tabindex="-1"></a>  </span>
+<span id="cb3-8"><a href="#cb3-8" aria-hidden="true" tabindex="-1"></a>  extr <span class="ot">&lt;-</span> exactextractr<span class="sc">::</span><span class="fu">exact_extract</span>(lu, sites_buffer,</span>
+<span id="cb3-9"><a href="#cb3-9" aria-hidden="true" tabindex="-1"></a>                                       <span class="at">progress =</span> <span class="cn">FALSE</span>)</span>
+<span id="cb3-10"><a href="#cb3-10" aria-hidden="true" tabindex="-1"></a>  </span>
+<span id="cb3-11"><a href="#cb3-11" aria-hidden="true" tabindex="-1"></a>  extr <span class="ot">&lt;-</span> <span class="fu">mapply</span>(extr, <span class="dv">1</span><span class="sc">:</span><span class="fu">length</span>(extr), </span>
+<span id="cb3-12"><a href="#cb3-12" aria-hidden="true" tabindex="-1"></a>                 <span class="at">FUN =</span> \(x, y) dplyr<span class="sc">::</span><span class="fu">mutate</span>(x, <span class="at">id =</span> y),</span>
+<span id="cb3-13"><a href="#cb3-13" aria-hidden="true" tabindex="-1"></a>                 <span class="at">SIMPLIFY =</span> F)</span>
+<span id="cb3-14"><a href="#cb3-14" aria-hidden="true" tabindex="-1"></a>  </span>
+<span id="cb3-15"><a href="#cb3-15" aria-hidden="true" tabindex="-1"></a>  extr_df <span class="ot">&lt;-</span> <span class="fu">do.call</span>(rbind, extr) <span class="sc">|&gt;</span></span>
+<span id="cb3-16"><a href="#cb3-16" aria-hidden="true" tabindex="-1"></a>    dplyr<span class="sc">::</span><span class="fu">filter</span>(<span class="sc">!</span><span class="fu">is.na</span>(value)) <span class="sc">|&gt;</span></span>
+<span id="cb3-17"><a href="#cb3-17" aria-hidden="true" tabindex="-1"></a>    dplyr<span class="sc">::</span><span class="fu">relocate</span>(id)</span>
+<span id="cb3-18"><a href="#cb3-18" aria-hidden="true" tabindex="-1"></a>  </span>
+<span id="cb3-19"><a href="#cb3-19" aria-hidden="true" tabindex="-1"></a>  <span class="fu">return</span>(extr_df)</span>
+<span id="cb3-20"><a href="#cb3-20" aria-hidden="true" tabindex="-1"></a>  </span>
+<span id="cb3-21"><a href="#cb3-21" aria-hidden="true" tabindex="-1"></a>}</span>
+<span id="cb3-22"><a href="#cb3-22" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb3-23"><a href="#cb3-23" aria-hidden="true" tabindex="-1"></a>compute_land_cover <span class="ot">&lt;-</span> <span class="cf">function</span>(scale_m, sites, </span>
+<span id="cb3-24"><a href="#cb3-24" aria-hidden="true" tabindex="-1"></a>                               lu_16, lu_17, lu_dat) {</span>
+<span id="cb3-25"><a href="#cb3-25" aria-hidden="true" tabindex="-1"></a>  </span>
+<span id="cb3-26"><a href="#cb3-26" aria-hidden="true" tabindex="-1"></a>  extr_16_df <span class="ot">&lt;-</span> <span class="fu">extract_from_points</span>(scale_m, sites, lu_16)</span>
+<span id="cb3-27"><a href="#cb3-27" aria-hidden="true" tabindex="-1"></a>  extr_17_df <span class="ot">&lt;-</span> <span class="fu">extract_from_points</span>(scale_m, sites, lu_17)</span>
+<span id="cb3-28"><a href="#cb3-28" aria-hidden="true" tabindex="-1"></a>  </span>
+<span id="cb3-29"><a href="#cb3-29" aria-hidden="true" tabindex="-1"></a>  <span class="fu">stopifnot</span>(<span class="fu">all</span>(<span class="sc">!</span>(extr_16_df<span class="sc">$</span>siteID <span class="sc">%in%</span> extr_17_df<span class="sc">$</span>siteID)))</span>
+<span id="cb3-30"><a href="#cb3-30" aria-hidden="true" tabindex="-1"></a>  </span>
+<span id="cb3-31"><a href="#cb3-31" aria-hidden="true" tabindex="-1"></a>  extr <span class="ot">&lt;-</span> <span class="fu">rbind</span>(extr_16_df, extr_17_df) <span class="sc">|&gt;</span></span>
+<span id="cb3-32"><a href="#cb3-32" aria-hidden="true" tabindex="-1"></a>    dplyr<span class="sc">::</span><span class="fu">arrange</span>(id, value)</span>
+<span id="cb3-33"><a href="#cb3-33" aria-hidden="true" tabindex="-1"></a>  </span>
+<span id="cb3-34"><a href="#cb3-34" aria-hidden="true" tabindex="-1"></a>  extr_table <span class="ot">&lt;-</span> extr <span class="sc">|&gt;</span></span>
+<span id="cb3-35"><a href="#cb3-35" aria-hidden="true" tabindex="-1"></a>    dplyr<span class="sc">::</span><span class="fu">group_by</span>(value) <span class="sc">|&gt;</span></span>
+<span id="cb3-36"><a href="#cb3-36" aria-hidden="true" tabindex="-1"></a>    dplyr<span class="sc">::</span><span class="fu">summarise</span>(<span class="at">coverage_fraction_sum =</span> <span class="fu">sum</span>(coverage_fraction)) <span class="sc">|&gt;</span></span>
+<span id="cb3-37"><a href="#cb3-37" aria-hidden="true" tabindex="-1"></a>    dplyr<span class="sc">::</span><span class="fu">mutate</span>(<span class="at">prop =</span> </span>
+<span id="cb3-38"><a href="#cb3-38" aria-hidden="true" tabindex="-1"></a>                    coverage_fraction_sum<span class="sc">/</span><span class="fu">sum</span>(coverage_fraction_sum)) <span class="sc">|&gt;</span></span>
+<span id="cb3-39"><a href="#cb3-39" aria-hidden="true" tabindex="-1"></a>    dplyr<span class="sc">::</span><span class="fu">ungroup</span>()  <span class="sc">|&gt;</span></span>
+<span id="cb3-40"><a href="#cb3-40" aria-hidden="true" tabindex="-1"></a>    dplyr<span class="sc">::</span><span class="fu">mutate</span>(<span class="at">value =</span> <span class="fu">as.factor</span>(value)) <span class="sc">|&gt;</span></span>
+<span id="cb3-41"><a href="#cb3-41" aria-hidden="true" tabindex="-1"></a>    dplyr<span class="sc">::</span><span class="fu">left_join</span>(lu_dat, <span class="at">by =</span> <span class="fu">c</span>(<span class="st">"value"</span> <span class="ot">=</span> <span class="st">"cats"</span>)) <span class="sc">|&gt;</span></span>
+<span id="cb3-42"><a href="#cb3-42" aria-hidden="true" tabindex="-1"></a>    dplyr<span class="sc">::</span><span class="fu">select</span>(category_code, prop, label)</span>
+<span id="cb3-43"><a href="#cb3-43" aria-hidden="true" tabindex="-1"></a>  </span>
+<span id="cb3-44"><a href="#cb3-44" aria-hidden="true" tabindex="-1"></a>  extr_table[<span class="fu">is.na</span>(extr_table)] <span class="ot">&lt;-</span> <span class="dv">0</span></span>
+<span id="cb3-45"><a href="#cb3-45" aria-hidden="true" tabindex="-1"></a>  </span>
+<span id="cb3-46"><a href="#cb3-46" aria-hidden="true" tabindex="-1"></a>  <span class="fu">return</span>(extr_table)</span>
+<span id="cb3-47"><a href="#cb3-47" aria-hidden="true" tabindex="-1"></a>  </span>
+<span id="cb3-48"><a href="#cb3-48" aria-hidden="true" tabindex="-1"></a>}</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 </div>
 <p>We extract at different scales (buffer radius around points): 1 m, 50 m, 100 m and 1 km.</p>
 <div class="cell">
-<div class="sourceCode cell-code" id="cb3"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb3-1"><a href="#cb3-1" aria-hidden="true" tabindex="-1"></a>res <span class="ot">&lt;-</span> <span class="fu">mapply</span>(<span class="at">FUN =</span> compute_land_cover, <span class="fu">c</span>(<span class="st">`</span><span class="at">1 m</span><span class="st">`</span> <span class="ot">=</span> <span class="dv">1</span>, <span class="st">`</span><span class="at">50 m</span><span class="st">`</span> <span class="ot">=</span> <span class="dv">50</span>,</span>
-<span id="cb3-2"><a href="#cb3-2" aria-hidden="true" tabindex="-1"></a>                                          <span class="st">`</span><span class="at">100 m</span><span class="st">`</span> <span class="ot">=</span> <span class="dv">100</span>, <span class="st">`</span><span class="at">1 km</span><span class="st">`</span> <span class="ot">=</span> <span class="dv">1000</span>),</span>
-<span id="cb3-3"><a href="#cb3-3" aria-hidden="true" tabindex="-1"></a>              <span class="at">MoreArgs =</span> <span class="fu">list</span>(</span>
-<span id="cb3-4"><a href="#cb3-4" aria-hidden="true" tabindex="-1"></a>                <span class="at">sites =</span> sites_possible,</span>
-<span id="cb3-5"><a href="#cb3-5" aria-hidden="true" tabindex="-1"></a>                <span class="at">lu_16 =</span> lu_16, <span class="at">lu_17 =</span> lu_17, <span class="at">lu_dat =</span> lu_dat),</span>
-<span id="cb3-6"><a href="#cb3-6" aria-hidden="true" tabindex="-1"></a>              <span class="at">SIMPLIFY =</span> F) <span class="sc">|&gt;</span></span>
-<span id="cb3-7"><a href="#cb3-7" aria-hidden="true" tabindex="-1"></a>  dplyr<span class="sc">::</span><span class="fu">bind_rows</span>(<span class="at">.id =</span> <span class="st">'scale'</span>) <span class="sc">|&gt;</span></span>
-<span id="cb3-8"><a href="#cb3-8" aria-hidden="true" tabindex="-1"></a>  dplyr<span class="sc">::</span><span class="fu">mutate</span>(<span class="at">scale =</span> forcats<span class="sc">::</span><span class="fu">fct_relevel</span>(scale, <span class="st">"1 m"</span>, <span class="st">"50 m"</span>,</span>
-<span id="cb3-9"><a href="#cb3-9" aria-hidden="true" tabindex="-1"></a>                                             <span class="st">"100 m"</span>, <span class="st">"1 km"</span>),</span>
-<span id="cb3-10"><a href="#cb3-10" aria-hidden="true" tabindex="-1"></a>                <span class="at">label =</span>  forcats<span class="sc">::</span><span class="fu">fct_reorder</span>(label, prop_sum)) <span class="sc">|&gt;</span> </span>
-<span id="cb3-11"><a href="#cb3-11" aria-hidden="true" tabindex="-1"></a>  dplyr<span class="sc">::</span><span class="fu">arrange</span>(scale, dplyr<span class="sc">::</span><span class="fu">desc</span>(prop_sum))</span>
-<span id="cb3-12"><a href="#cb3-12" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb3-13"><a href="#cb3-13" aria-hidden="true" tabindex="-1"></a>knitr<span class="sc">::</span><span class="fu">kable</span>(res)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="sourceCode cell-code" id="cb4"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb4-1"><a href="#cb4-1" aria-hidden="true" tabindex="-1"></a>res_points <span class="ot">&lt;-</span> <span class="fu">mapply</span>(<span class="at">FUN =</span> compute_land_cover, </span>
+<span id="cb4-2"><a href="#cb4-2" aria-hidden="true" tabindex="-1"></a>                     <span class="fu">c</span>(<span class="st">`</span><span class="at">1 m</span><span class="st">`</span> <span class="ot">=</span> <span class="dv">1</span>, <span class="st">`</span><span class="at">50 m</span><span class="st">`</span> <span class="ot">=</span> <span class="dv">50</span>,</span>
+<span id="cb4-3"><a href="#cb4-3" aria-hidden="true" tabindex="-1"></a>                       <span class="st">`</span><span class="at">100 m</span><span class="st">`</span> <span class="ot">=</span> <span class="dv">100</span>, <span class="st">`</span><span class="at">1 km</span><span class="st">`</span> <span class="ot">=</span> <span class="dv">1000</span>),</span>
+<span id="cb4-4"><a href="#cb4-4" aria-hidden="true" tabindex="-1"></a>                     <span class="at">MoreArgs =</span> <span class="fu">list</span>(</span>
+<span id="cb4-5"><a href="#cb4-5" aria-hidden="true" tabindex="-1"></a>                       <span class="at">sites =</span> sites_possible,</span>
+<span id="cb4-6"><a href="#cb4-6" aria-hidden="true" tabindex="-1"></a>                       <span class="at">lu_16 =</span> lu_16, <span class="at">lu_17 =</span> lu_17, <span class="at">lu_dat =</span> lu_dat),</span>
+<span id="cb4-7"><a href="#cb4-7" aria-hidden="true" tabindex="-1"></a>                     <span class="at">SIMPLIFY =</span> F) <span class="sc">|&gt;</span></span>
+<span id="cb4-8"><a href="#cb4-8" aria-hidden="true" tabindex="-1"></a>  dplyr<span class="sc">::</span><span class="fu">bind_rows</span>(<span class="at">.id =</span> <span class="st">'scale'</span>) <span class="sc">|&gt;</span></span>
+<span id="cb4-9"><a href="#cb4-9" aria-hidden="true" tabindex="-1"></a>  dplyr<span class="sc">::</span><span class="fu">mutate</span>(<span class="at">scale =</span> forcats<span class="sc">::</span><span class="fu">fct_relevel</span>(scale, <span class="st">"1 m"</span>, <span class="st">"50 m"</span>,</span>
+<span id="cb4-10"><a href="#cb4-10" aria-hidden="true" tabindex="-1"></a>                                             <span class="st">"100 m"</span>, <span class="st">"1 km"</span>),</span>
+<span id="cb4-11"><a href="#cb4-11" aria-hidden="true" tabindex="-1"></a>                <span class="at">label =</span>  forcats<span class="sc">::</span><span class="fu">fct_reorder</span>(label, prop)) <span class="sc">|&gt;</span> </span>
+<span id="cb4-12"><a href="#cb4-12" aria-hidden="true" tabindex="-1"></a>  dplyr<span class="sc">::</span><span class="fu">arrange</span>(scale, dplyr<span class="sc">::</span><span class="fu">desc</span>(prop))</span>
+<span id="cb4-13"><a href="#cb4-13" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb4-14"><a href="#cb4-14" aria-hidden="true" tabindex="-1"></a>knitr<span class="sc">::</span><span class="fu">kable</span>(res_points)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 <div class="cell-output-display">
 <table class="table table-sm table-striped small">
 <thead>
 <tr class="header">
 <th style="text-align: left;">scale</th>
 <th style="text-align: left;">category_code</th>
+<th style="text-align: right;">prop</th>
 <th style="text-align: left;">label</th>
-<th style="text-align: right;">prop_sum</th>
 </tr>
 </thead>
 <tbody>
 <tr class="odd">
 <td style="text-align: left;">1 m</td>
 <td style="text-align: left;">TrBOG</td>
+<td style="text-align: right;">0.26</td>
 <td style="text-align: left;">Treed Bog</td>
-<td style="text-align: right;">13.00</td>
 </tr>
 <tr class="even">
 <td style="text-align: left;">1 m</td>
 <td style="text-align: left;">TrFEN</td>
+<td style="text-align: right;">0.23</td>
 <td style="text-align: left;">Treed Fen</td>
-<td style="text-align: right;">11.34</td>
 </tr>
 <tr class="odd">
 <td style="text-align: left;">1 m</td>
 <td style="text-align: left;">OBOG</td>
+<td style="text-align: right;">0.20</td>
 <td style="text-align: left;">Open Bog</td>
-<td style="text-align: right;">10.00</td>
 </tr>
 <tr class="even">
 <td style="text-align: left;">1 m</td>
 <td style="text-align: left;">ConSWA</td>
+<td style="text-align: right;">0.11</td>
 <td style="text-align: left;">Coniferous Swamp</td>
-<td style="text-align: right;">5.66</td>
 </tr>
 <tr class="odd">
 <td style="text-align: left;">1 m</td>
 <td style="text-align: left;">ConTRE</td>
+<td style="text-align: right;">0.10</td>
 <td style="text-align: left;">Coniferous Treed</td>
-<td style="text-align: right;">5.00</td>
 </tr>
 <tr class="even">
 <td style="text-align: left;">1 m</td>
 <td style="text-align: left;">OFEN</td>
+<td style="text-align: right;">0.06</td>
 <td style="text-align: left;">Open Fen</td>
-<td style="text-align: right;">3.00</td>
 </tr>
 <tr class="odd">
 <td style="text-align: left;">1 m</td>
-<td style="text-align: left;">MixTRE</td>
-<td style="text-align: left;">Mixed Treed</td>
-<td style="text-align: right;">1.00</td>
+<td style="text-align: left;">SpTRE</td>
+<td style="text-align: right;">0.02</td>
+<td style="text-align: left;">Sparse Treed</td>
 </tr>
 <tr class="even">
 <td style="text-align: left;">1 m</td>
-<td style="text-align: left;">SpTRE</td>
-<td style="text-align: left;">Sparse Treed</td>
-<td style="text-align: right;">1.00</td>
+<td style="text-align: left;">MixTRE</td>
+<td style="text-align: right;">0.02</td>
+<td style="text-align: left;">Mixed Treed</td>
 </tr>
 <tr class="odd">
 <td style="text-align: left;">50 m</td>
 <td style="text-align: left;">TrBOG</td>
+<td style="text-align: right;">0.23</td>
 <td style="text-align: left;">Treed Bog</td>
-<td style="text-align: right;">11.69</td>
 </tr>
 <tr class="even">
 <td style="text-align: left;">50 m</td>
 <td style="text-align: left;">TrFEN</td>
+<td style="text-align: right;">0.22</td>
 <td style="text-align: left;">Treed Fen</td>
-<td style="text-align: right;">10.93</td>
 </tr>
 <tr class="odd">
 <td style="text-align: left;">50 m</td>
 <td style="text-align: left;">OBOG</td>
+<td style="text-align: right;">0.21</td>
 <td style="text-align: left;">Open Bog</td>
-<td style="text-align: right;">10.56</td>
 </tr>
 <tr class="even">
 <td style="text-align: left;">50 m</td>
 <td style="text-align: left;">ConSWA</td>
+<td style="text-align: right;">0.12</td>
 <td style="text-align: left;">Coniferous Swamp</td>
-<td style="text-align: right;">5.81</td>
 </tr>
 <tr class="odd">
 <td style="text-align: left;">50 m</td>
 <td style="text-align: left;">ConTRE</td>
+<td style="text-align: right;">0.09</td>
 <td style="text-align: left;">Coniferous Treed</td>
-<td style="text-align: right;">4.50</td>
 </tr>
 <tr class="even">
 <td style="text-align: left;">50 m</td>
 <td style="text-align: left;">OFEN</td>
+<td style="text-align: right;">0.07</td>
 <td style="text-align: left;">Open Fen</td>
-<td style="text-align: right;">3.71</td>
 </tr>
 <tr class="odd">
 <td style="text-align: left;">50 m</td>
 <td style="text-align: left;">SpTRE</td>
+<td style="text-align: right;">0.03</td>
 <td style="text-align: left;">Sparse Treed</td>
-<td style="text-align: right;">1.38</td>
 </tr>
 <tr class="even">
 <td style="text-align: left;">50 m</td>
 <td style="text-align: left;">MixTRE</td>
+<td style="text-align: right;">0.02</td>
 <td style="text-align: left;">Mixed Treed</td>
-<td style="text-align: right;">0.76</td>
 </tr>
 <tr class="odd">
 <td style="text-align: left;">50 m</td>
 <td style="text-align: left;">WAT</td>
+<td style="text-align: right;">0.01</td>
 <td style="text-align: left;">Clear Open Water</td>
-<td style="text-align: right;">0.61</td>
 </tr>
 <tr class="even">
 <td style="text-align: left;">50 m</td>
 <td style="text-align: left;">XWAT</td>
+<td style="text-align: right;">0.00</td>
 <td style="text-align: left;">Turbid Water</td>
-<td style="text-align: right;">0.05</td>
 </tr>
 <tr class="odd">
 <td style="text-align: left;">100 m</td>
 <td style="text-align: left;">TrBOG</td>
+<td style="text-align: right;">0.23</td>
 <td style="text-align: left;">Treed Bog</td>
-<td style="text-align: right;">11.32</td>
 </tr>
 <tr class="even">
 <td style="text-align: left;">100 m</td>
 <td style="text-align: left;">TrFEN</td>
+<td style="text-align: right;">0.22</td>
 <td style="text-align: left;">Treed Fen</td>
-<td style="text-align: right;">10.83</td>
 </tr>
 <tr class="odd">
 <td style="text-align: left;">100 m</td>
 <td style="text-align: left;">OBOG</td>
+<td style="text-align: right;">0.20</td>
 <td style="text-align: left;">Open Bog</td>
-<td style="text-align: right;">9.82</td>
 </tr>
 <tr class="even">
 <td style="text-align: left;">100 m</td>
 <td style="text-align: left;">ConSWA</td>
+<td style="text-align: right;">0.12</td>
 <td style="text-align: left;">Coniferous Swamp</td>
-<td style="text-align: right;">6.03</td>
 </tr>
 <tr class="odd">
 <td style="text-align: left;">100 m</td>
 <td style="text-align: left;">ConTRE</td>
+<td style="text-align: right;">0.10</td>
 <td style="text-align: left;">Coniferous Treed</td>
-<td style="text-align: right;">4.84</td>
 </tr>
 <tr class="even">
 <td style="text-align: left;">100 m</td>
 <td style="text-align: left;">OFEN</td>
+<td style="text-align: right;">0.08</td>
 <td style="text-align: left;">Open Fen</td>
-<td style="text-align: right;">4.07</td>
 </tr>
 <tr class="odd">
 <td style="text-align: left;">100 m</td>
 <td style="text-align: left;">WAT</td>
+<td style="text-align: right;">0.03</td>
 <td style="text-align: left;">Clear Open Water</td>
-<td style="text-align: right;">1.36</td>
 </tr>
 <tr class="even">
 <td style="text-align: left;">100 m</td>
 <td style="text-align: left;">SpTRE</td>
+<td style="text-align: right;">0.02</td>
 <td style="text-align: left;">Sparse Treed</td>
-<td style="text-align: right;">0.80</td>
 </tr>
 <tr class="odd">
 <td style="text-align: left;">100 m</td>
 <td style="text-align: left;">MixTRE</td>
+<td style="text-align: right;">0.01</td>
 <td style="text-align: left;">Mixed Treed</td>
-<td style="text-align: right;">0.67</td>
 </tr>
 <tr class="even">
 <td style="text-align: left;">100 m</td>
 <td style="text-align: left;">XWAT</td>
+<td style="text-align: right;">0.01</td>
 <td style="text-align: left;">Turbid Water</td>
-<td style="text-align: right;">0.25</td>
 </tr>
 <tr class="odd">
 <td style="text-align: left;">1 km</td>
 <td style="text-align: left;">TrFEN</td>
+<td style="text-align: right;">0.21</td>
 <td style="text-align: left;">Treed Fen</td>
-<td style="text-align: right;">10.69</td>
 </tr>
 <tr class="even">
 <td style="text-align: left;">1 km</td>
 <td style="text-align: left;">TrBOG</td>
+<td style="text-align: right;">0.21</td>
 <td style="text-align: left;">Treed Bog</td>
-<td style="text-align: right;">10.59</td>
 </tr>
 <tr class="odd">
 <td style="text-align: left;">1 km</td>
 <td style="text-align: left;">OBOG</td>
+<td style="text-align: right;">0.19</td>
 <td style="text-align: left;">Open Bog</td>
-<td style="text-align: right;">9.50</td>
 </tr>
 <tr class="even">
 <td style="text-align: left;">1 km</td>
 <td style="text-align: left;">ConSWA</td>
+<td style="text-align: right;">0.17</td>
 <td style="text-align: left;">Coniferous Swamp</td>
-<td style="text-align: right;">8.33</td>
 </tr>
 <tr class="odd">
 <td style="text-align: left;">1 km</td>
 <td style="text-align: left;">OFEN</td>
+<td style="text-align: right;">0.07</td>
 <td style="text-align: left;">Open Fen</td>
-<td style="text-align: right;">3.74</td>
 </tr>
 <tr class="even">
 <td style="text-align: left;">1 km</td>
 <td style="text-align: left;">ConTRE</td>
+<td style="text-align: right;">0.06</td>
 <td style="text-align: left;">Coniferous Treed</td>
-<td style="text-align: right;">3.21</td>
 </tr>
 <tr class="odd">
 <td style="text-align: left;">1 km</td>
 <td style="text-align: left;">WAT</td>
+<td style="text-align: right;">0.04</td>
 <td style="text-align: left;">Clear Open Water</td>
-<td style="text-align: right;">2.21</td>
 </tr>
 <tr class="even">
 <td style="text-align: left;">1 km</td>
 <td style="text-align: left;">MixTRE</td>
+<td style="text-align: right;">0.01</td>
 <td style="text-align: left;">Mixed Treed</td>
-<td style="text-align: right;">0.66</td>
 </tr>
 <tr class="odd">
 <td style="text-align: left;">1 km</td>
 <td style="text-align: left;">XWAT</td>
+<td style="text-align: right;">0.01</td>
 <td style="text-align: left;">Turbid Water</td>
-<td style="text-align: right;">0.41</td>
 </tr>
 <tr class="even">
 <td style="text-align: left;">1 km</td>
 <td style="text-align: left;">ThSWA</td>
+<td style="text-align: right;">0.01</td>
 <td style="text-align: left;">Thicket Swamp</td>
-<td style="text-align: right;">0.35</td>
 </tr>
 <tr class="odd">
 <td style="text-align: left;">1 km</td>
 <td style="text-align: left;">SpTRE</td>
+<td style="text-align: right;">0.00</td>
 <td style="text-align: left;">Sparse Treed</td>
-<td style="text-align: right;">0.14</td>
 </tr>
 <tr class="even">
 <td style="text-align: left;">1 km</td>
 <td style="text-align: left;">NSWood</td>
+<td style="text-align: right;">0.00</td>
 <td style="text-align: left;">Disturbance - Non and Sparse Woody</td>
-<td style="text-align: right;">0.12</td>
 </tr>
 <tr class="odd">
 <td style="text-align: left;">1 km</td>
 <td style="text-align: left;">DecTRE</td>
+<td style="text-align: right;">0.00</td>
 <td style="text-align: left;">Deciduous Treed</td>
-<td style="text-align: right;">0.02</td>
 </tr>
 <tr class="even">
 <td style="text-align: left;">1 km</td>
 <td style="text-align: left;">TrOrSHr</td>
+<td style="text-align: right;">0.00</td>
 <td style="text-align: left;">Disturbance - Treed and/or Shrub</td>
-<td style="text-align: right;">0.01</td>
 </tr>
 <tr class="odd">
 <td style="text-align: left;">1 km</td>
 <td style="text-align: left;">BED</td>
-<td style="text-align: left;">Bedrock</td>
 <td style="text-align: right;">0.00</td>
+<td style="text-align: left;">Bedrock</td>
 </tr>
 </tbody>
 </table>
 </div>
 </div>
+<p>We also want to do the same operation for the ecodistrict to allow for comparison. We don’t need to use exact extraction, insteadt the crop and mask each raster. This operation is costly so we write out the rasters and load them again (see unrendered code).</p>
+<div class="cell">
+<div class="sourceCode cell-code" id="cb5"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb5-1"><a href="#cb5-1" aria-hidden="true" tabindex="-1"></a>ecodistrict_16 <span class="ot">&lt;-</span> sf<span class="sc">::</span><span class="fu">st_transform</span>(ecodistrict, sf<span class="sc">::</span><span class="fu">st_crs</span>(lu_16))</span>
+<span id="cb5-2"><a href="#cb5-2" aria-hidden="true" tabindex="-1"></a>ecodistrict_17 <span class="ot">&lt;-</span> sf<span class="sc">::</span><span class="fu">st_transform</span>(ecodistrict, sf<span class="sc">::</span><span class="fu">st_crs</span>(lu_17))</span>
+<span id="cb5-3"><a href="#cb5-3" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb5-4"><a href="#cb5-4" aria-hidden="true" tabindex="-1"></a>lu_16_crop <span class="ot">&lt;-</span> raster<span class="sc">::</span><span class="fu">crop</span>(lu_16, ecodistrict_16)</span>
+<span id="cb5-5"><a href="#cb5-5" aria-hidden="true" tabindex="-1"></a>lu_16_crop_mask <span class="ot">&lt;-</span> raster<span class="sc">::</span><span class="fu">mask</span>(lu_16_crop, ecodistrict_16)</span>
+<span id="cb5-6"><a href="#cb5-6" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb5-7"><a href="#cb5-7" aria-hidden="true" tabindex="-1"></a>lu_17_crop <span class="ot">&lt;-</span> raster<span class="sc">::</span><span class="fu">crop</span>(lu_17, ecodistrict_17)</span>
+<span id="cb5-8"><a href="#cb5-8" aria-hidden="true" tabindex="-1"></a>lu_17_crop_mask <span class="ot">&lt;-</span> raster<span class="sc">::</span><span class="fu">mask</span>(lu_17_crop, ecodistrict_17)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+</div>
+<p>We can then get the frequencies of values. This operation is also costly so we write out the objects and load them again (see unrendered code).</p>
+<div class="cell">
+<div class="sourceCode cell-code" id="cb6"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb6-1"><a href="#cb6-1" aria-hidden="true" tabindex="-1"></a>lu_16_freq <span class="ot">&lt;-</span> raster<span class="sc">::</span><span class="fu">freq</span>(lu_16_crop_mask)</span>
+<span id="cb6-2"><a href="#cb6-2" aria-hidden="true" tabindex="-1"></a>lu_17_freq <span class="ot">&lt;-</span> raster<span class="sc">::</span><span class="fu">freq</span>(lu_17_crop_mask)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+</div>
+<p>We combine the results of both UTMs.</p>
+<div class="cell">
+<div class="sourceCode cell-code" id="cb7"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb7-1"><a href="#cb7-1" aria-hidden="true" tabindex="-1"></a>res_ecodistrict <span class="ot">&lt;-</span> <span class="fu">rbind</span>(lu_16_freq, lu_17_freq) <span class="sc">|&gt;</span></span>
+<span id="cb7-2"><a href="#cb7-2" aria-hidden="true" tabindex="-1"></a>  <span class="fu">as.data.frame</span>() <span class="sc">|&gt;</span> </span>
+<span id="cb7-3"><a href="#cb7-3" aria-hidden="true" tabindex="-1"></a>  dplyr<span class="sc">::</span><span class="fu">group_by</span>(value) <span class="sc">|&gt;</span> </span>
+<span id="cb7-4"><a href="#cb7-4" aria-hidden="true" tabindex="-1"></a>  dplyr<span class="sc">::</span><span class="fu">summarise</span>(<span class="at">count =</span> <span class="fu">sum</span>(count)) <span class="sc">|&gt;</span> </span>
+<span id="cb7-5"><a href="#cb7-5" aria-hidden="true" tabindex="-1"></a>  dplyr<span class="sc">::</span><span class="fu">ungroup</span>() <span class="sc">|&gt;</span> </span>
+<span id="cb7-6"><a href="#cb7-6" aria-hidden="true" tabindex="-1"></a>  dplyr<span class="sc">::</span><span class="fu">filter</span>(<span class="sc">!</span><span class="fu">is.na</span>(value)) <span class="sc">|&gt;</span> </span>
+<span id="cb7-7"><a href="#cb7-7" aria-hidden="true" tabindex="-1"></a>  dplyr<span class="sc">::</span><span class="fu">mutate</span>(<span class="at">prop =</span> count<span class="sc">/</span><span class="fu">sum</span>(count)) <span class="sc">|&gt;</span> </span>
+<span id="cb7-8"><a href="#cb7-8" aria-hidden="true" tabindex="-1"></a>  dplyr<span class="sc">::</span><span class="fu">mutate</span>(<span class="at">value =</span> <span class="fu">as.factor</span>(value)) <span class="sc">|&gt;</span></span>
+<span id="cb7-9"><a href="#cb7-9" aria-hidden="true" tabindex="-1"></a>  dplyr<span class="sc">::</span><span class="fu">left_join</span>(lu_dat, <span class="at">by =</span> <span class="fu">c</span>(<span class="st">"value"</span> <span class="ot">=</span> <span class="st">"cats"</span>)) <span class="sc">|&gt;</span></span>
+<span id="cb7-10"><a href="#cb7-10" aria-hidden="true" tabindex="-1"></a>  dplyr<span class="sc">::</span><span class="fu">filter</span>(<span class="sc">!</span><span class="fu">is.na</span>(label)) <span class="sc">|&gt;</span> </span>
+<span id="cb7-11"><a href="#cb7-11" aria-hidden="true" tabindex="-1"></a>  dplyr<span class="sc">::</span><span class="fu">select</span>(category_code, prop, label) <span class="sc">|&gt;</span> </span>
+<span id="cb7-12"><a href="#cb7-12" aria-hidden="true" tabindex="-1"></a>  dplyr<span class="sc">::</span><span class="fu">mutate</span>(<span class="at">scale =</span> <span class="st">"Ecodistrict"</span>) <span class="sc">|&gt;</span> </span>
+<span id="cb7-13"><a href="#cb7-13" aria-hidden="true" tabindex="-1"></a>  dplyr<span class="sc">::</span><span class="fu">relocate</span>(scale) <span class="sc">|&gt;</span></span>
+<span id="cb7-14"><a href="#cb7-14" aria-hidden="true" tabindex="-1"></a>  dplyr<span class="sc">::</span><span class="fu">arrange</span>(scale, dplyr<span class="sc">::</span><span class="fu">desc</span>(prop))</span>
+<span id="cb7-15"><a href="#cb7-15" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb7-16"><a href="#cb7-16" aria-hidden="true" tabindex="-1"></a>knitr<span class="sc">::</span><span class="fu">kable</span>(res_ecodistrict)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="cell-output-display">
+<table class="table table-sm table-striped small">
+<thead>
+<tr class="header">
+<th style="text-align: left;">scale</th>
+<th style="text-align: left;">category_code</th>
+<th style="text-align: right;">prop</th>
+<th style="text-align: left;">label</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td style="text-align: left;">Ecodistrict</td>
+<td style="text-align: left;">TrFEN</td>
+<td style="text-align: right;">0.25</td>
+<td style="text-align: left;">Treed Fen</td>
+</tr>
+<tr class="even">
+<td style="text-align: left;">Ecodistrict</td>
+<td style="text-align: left;">OBOG</td>
+<td style="text-align: right;">0.20</td>
+<td style="text-align: left;">Open Bog</td>
+</tr>
+<tr class="odd">
+<td style="text-align: left;">Ecodistrict</td>
+<td style="text-align: left;">TrBOG</td>
+<td style="text-align: right;">0.19</td>
+<td style="text-align: left;">Treed Bog</td>
+</tr>
+<tr class="even">
+<td style="text-align: left;">Ecodistrict</td>
+<td style="text-align: left;">ConSWA</td>
+<td style="text-align: right;">0.12</td>
+<td style="text-align: left;">Coniferous Swamp</td>
+</tr>
+<tr class="odd">
+<td style="text-align: left;">Ecodistrict</td>
+<td style="text-align: left;">OFEN</td>
+<td style="text-align: right;">0.09</td>
+<td style="text-align: left;">Open Fen</td>
+</tr>
+<tr class="even">
+<td style="text-align: left;">Ecodistrict</td>
+<td style="text-align: left;">WAT</td>
+<td style="text-align: right;">0.07</td>
+<td style="text-align: left;">Clear Open Water</td>
+</tr>
+<tr class="odd">
+<td style="text-align: left;">Ecodistrict</td>
+<td style="text-align: left;">ConTRE</td>
+<td style="text-align: right;">0.04</td>
+<td style="text-align: left;">Coniferous Treed</td>
+</tr>
+<tr class="even">
+<td style="text-align: left;">Ecodistrict</td>
+<td style="text-align: left;">NSWood</td>
+<td style="text-align: right;">0.01</td>
+<td style="text-align: left;">Disturbance - Non and Sparse Woody</td>
+</tr>
+<tr class="odd">
+<td style="text-align: left;">Ecodistrict</td>
+<td style="text-align: left;">TrOrSHr</td>
+<td style="text-align: right;">0.01</td>
+<td style="text-align: left;">Disturbance - Treed and/or Shrub</td>
+</tr>
+<tr class="even">
+<td style="text-align: left;">Ecodistrict</td>
+<td style="text-align: left;">MixTRE</td>
+<td style="text-align: right;">0.01</td>
+<td style="text-align: left;">Mixed Treed</td>
+</tr>
+<tr class="odd">
+<td style="text-align: left;">Ecodistrict</td>
+<td style="text-align: left;">ThSWA</td>
+<td style="text-align: right;">0.01</td>
+<td style="text-align: left;">Thicket Swamp</td>
+</tr>
+<tr class="even">
+<td style="text-align: left;">Ecodistrict</td>
+<td style="text-align: left;">SpTRE</td>
+<td style="text-align: right;">0.00</td>
+<td style="text-align: left;">Sparse Treed</td>
+</tr>
+<tr class="odd">
+<td style="text-align: left;">Ecodistrict</td>
+<td style="text-align: left;">XWAT</td>
+<td style="text-align: right;">0.00</td>
+<td style="text-align: left;">Turbid Water</td>
+</tr>
+<tr class="even">
+<td style="text-align: left;">Ecodistrict</td>
+<td style="text-align: left;">DecTRE</td>
+<td style="text-align: right;">0.00</td>
+<td style="text-align: left;">Deciduous Treed</td>
+</tr>
+<tr class="odd">
+<td style="text-align: left;">Ecodistrict</td>
+<td style="text-align: left;">MIN</td>
+<td style="text-align: right;">0.00</td>
+<td style="text-align: left;">Sand/Gravel/Mine Tailings</td>
+</tr>
+<tr class="even">
+<td style="text-align: left;">Ecodistrict</td>
+<td style="text-align: left;">FrMAR</td>
+<td style="text-align: right;">0.00</td>
+<td style="text-align: left;">Freshwater Marsh</td>
+</tr>
+<tr class="odd">
+<td style="text-align: left;">Ecodistrict</td>
+<td style="text-align: left;">BED</td>
+<td style="text-align: right;">0.00</td>
+<td style="text-align: left;">Bedrock</td>
+</tr>
+<tr class="even">
+<td style="text-align: left;">Ecodistrict</td>
+<td style="text-align: left;">URB</td>
+<td style="text-align: right;">0.00</td>
+<td style="text-align: left;">Community/Infrastructure</td>
+</tr>
+<tr class="odd">
+<td style="text-align: left;">Ecodistrict</td>
+<td style="text-align: left;">DecSWA</td>
+<td style="text-align: right;">0.00</td>
+<td style="text-align: left;">Deciduous Swamp</td>
+</tr>
+<tr class="even">
+<td style="text-align: left;">Ecodistrict</td>
+<td style="text-align: left;">InMAR</td>
+<td style="text-align: right;">0.00</td>
+<td style="text-align: left;">Intertidal Marsh</td>
+</tr>
+</tbody>
+</table>
+</div>
+</div>
+<p>And then combine the results between scales and utm.</p>
+<div class="cell">
+<div class="sourceCode cell-code" id="cb8"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb8-1"><a href="#cb8-1" aria-hidden="true" tabindex="-1"></a>res <span class="ot">&lt;-</span> <span class="fu">rbind</span>(res_points, res_ecodistrict) <span class="sc">|&gt;</span> </span>
+<span id="cb8-2"><a href="#cb8-2" aria-hidden="true" tabindex="-1"></a>  tidyr<span class="sc">::</span><span class="fu">complete</span>(scale, label) <span class="sc">|&gt;</span> </span>
+<span id="cb8-3"><a href="#cb8-3" aria-hidden="true" tabindex="-1"></a>  tidyr<span class="sc">::</span><span class="fu">replace_na</span>(<span class="fu">list</span>(<span class="at">prop =</span> <span class="dv">0</span>)) <span class="sc">|&gt;</span> </span>
+<span id="cb8-4"><a href="#cb8-4" aria-hidden="true" tabindex="-1"></a>  dplyr<span class="sc">::</span><span class="fu">mutate</span>(<span class="at">label =</span>  forcats<span class="sc">::</span><span class="fu">fct_reorder</span>(label, prop))</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+</div>
+</section>
+<section id="results" class="level2">
+<h2 class="anchored" data-anchor-id="results">Results</h2>
 <p>We can plot the results with “dodged” ggplot2 barplots.</p>
 <div class="cell">
-<div class="sourceCode cell-code" id="cb4"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb4-1"><a href="#cb4-1" aria-hidden="true" tabindex="-1"></a><span class="fu">library</span>(ggplot2)</span>
-<span id="cb4-2"><a href="#cb4-2" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb4-3"><a href="#cb4-3" aria-hidden="true" tabindex="-1"></a>my_pal <span class="ot">&lt;-</span> <span class="fu">c</span>(<span class="st">'#c7e9b4'</span>,<span class="st">'#7fcdbb'</span>,<span class="st">'#41b6c4'</span>,<span class="st">'#2c7fb8'</span>,<span class="st">'#253494'</span>)</span>
-<span id="cb4-4"><a href="#cb4-4" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb4-5"><a href="#cb4-5" aria-hidden="true" tabindex="-1"></a><span class="fu">ggplot</span>(res) <span class="sc">+</span></span>
-<span id="cb4-6"><a href="#cb4-6" aria-hidden="true" tabindex="-1"></a>  <span class="fu">geom_bar</span>(<span class="fu">aes</span>(<span class="at">x =</span> label, <span class="at">y =</span> prop_sum, <span class="at">fill =</span> scale, <span class="at">colour =</span> scale), </span>
-<span id="cb4-7"><a href="#cb4-7" aria-hidden="true" tabindex="-1"></a>           <span class="at">alpha =</span> <span class="fl">0.8</span>,</span>
-<span id="cb4-8"><a href="#cb4-8" aria-hidden="true" tabindex="-1"></a>           <span class="at">stat =</span> <span class="st">"identity"</span>,</span>
-<span id="cb4-9"><a href="#cb4-9" aria-hidden="true" tabindex="-1"></a>           <span class="at">position =</span> <span class="st">"dodge"</span>) <span class="sc">+</span></span>
-<span id="cb4-10"><a href="#cb4-10" aria-hidden="true" tabindex="-1"></a>  <span class="fu">theme_bw</span>() <span class="sc">+</span></span>
-<span id="cb4-11"><a href="#cb4-11" aria-hidden="true" tabindex="-1"></a>  <span class="fu">theme</span>(<span class="at">axis.text.x =</span> <span class="fu">element_text</span>(<span class="at">angle =</span> <span class="dv">20</span>, <span class="at">vjust =</span> <span class="dv">1</span>, <span class="at">hjust =</span> <span class="dv">1</span>)) <span class="sc">+</span></span>
-<span id="cb4-12"><a href="#cb4-12" aria-hidden="true" tabindex="-1"></a>  <span class="fu">labs</span>(<span class="at">x =</span> <span class="st">"Land Use Class"</span>, <span class="at">y =</span> <span class="st">"Sum of Proportions"</span>,</span>
-<span id="cb4-13"><a href="#cb4-13" aria-hidden="true" tabindex="-1"></a>       <span class="at">fill =</span> <span class="st">"Scale"</span>, <span class="at">colour =</span> <span class="st">"Scale"</span>) <span class="sc">+</span></span>
-<span id="cb4-14"><a href="#cb4-14" aria-hidden="true" tabindex="-1"></a>  <span class="fu">scale_fill_manual</span>(<span class="at">values =</span> my_pal) <span class="sc">+</span></span>
-<span id="cb4-15"><a href="#cb4-15" aria-hidden="true" tabindex="-1"></a>  <span class="fu">scale_color_manual</span>(<span class="at">values =</span> my_pal)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="sourceCode cell-code" id="cb9"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb9-1"><a href="#cb9-1" aria-hidden="true" tabindex="-1"></a>my_pal <span class="ot">&lt;-</span> <span class="fu">c</span>(<span class="st">'#c7e9b4'</span>,<span class="st">'#7fcdbb'</span>,<span class="st">'#41b6c4'</span>,<span class="st">'#1d91c0'</span>,<span class="st">'#225ea8'</span>,<span class="st">'#0c2c84'</span>)</span>
+<span id="cb9-2"><a href="#cb9-2" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb9-3"><a href="#cb9-3" aria-hidden="true" tabindex="-1"></a><span class="fu">ggplot</span>(res) <span class="sc">+</span></span>
+<span id="cb9-4"><a href="#cb9-4" aria-hidden="true" tabindex="-1"></a>  <span class="fu">geom_bar</span>(<span class="fu">aes</span>(<span class="at">x =</span> label, <span class="at">y =</span> prop, <span class="at">fill =</span> scale, <span class="at">colour =</span> scale), </span>
+<span id="cb9-5"><a href="#cb9-5" aria-hidden="true" tabindex="-1"></a>           <span class="at">alpha =</span> <span class="fl">0.8</span>,</span>
+<span id="cb9-6"><a href="#cb9-6" aria-hidden="true" tabindex="-1"></a>           <span class="at">stat =</span> <span class="st">"identity"</span>,</span>
+<span id="cb9-7"><a href="#cb9-7" aria-hidden="true" tabindex="-1"></a>           <span class="at">position =</span> <span class="st">"dodge"</span>) <span class="sc">+</span></span>
+<span id="cb9-8"><a href="#cb9-8" aria-hidden="true" tabindex="-1"></a>  <span class="fu">theme_bw</span>() <span class="sc">+</span></span>
+<span id="cb9-9"><a href="#cb9-9" aria-hidden="true" tabindex="-1"></a>  <span class="fu">theme</span>(<span class="at">axis.text.x =</span> <span class="fu">element_text</span>(<span class="at">angle =</span> <span class="dv">20</span>, <span class="at">vjust =</span> <span class="dv">1</span>, <span class="at">hjust =</span> <span class="dv">1</span>)) <span class="sc">+</span></span>
+<span id="cb9-10"><a href="#cb9-10" aria-hidden="true" tabindex="-1"></a>  <span class="fu">labs</span>(<span class="at">x =</span> <span class="st">"Land Use Class"</span>, <span class="at">y =</span> <span class="st">"Sum of Proportions"</span>,</span>
+<span id="cb9-11"><a href="#cb9-11" aria-hidden="true" tabindex="-1"></a>       <span class="at">fill =</span> <span class="st">"Scale"</span>, <span class="at">colour =</span> <span class="st">"Scale"</span>) <span class="sc">+</span></span>
+<span id="cb9-12"><a href="#cb9-12" aria-hidden="true" tabindex="-1"></a>  <span class="fu">scale_fill_manual</span>(<span class="at">values =</span> my_pal) <span class="sc">+</span></span>
+<span id="cb9-13"><a href="#cb9-13" aria-hidden="true" tabindex="-1"></a>  <span class="fu">scale_color_manual</span>(<span class="at">values =</span> my_pal)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 <div class="cell-output-display">
 <div>
 <figure class="figure">
-<p><img src="index_files/figure-html/unnamed-chunk-5-1.png" class="img-fluid figure-img" data-fig-pos="H" width="1248"></p>
+<p><img src="index_files/figure-html/unnamed-chunk-14-1.png" class="img-fluid figure-img" data-fig-pos="H" width="1248"></p>
+</figure>
+</div>
+</div>
+</div>
+<p>Removing the land use classes than are not present around sites, we get a slightly easier graph to read.</p>
+<div class="cell">
+<div class="sourceCode cell-code" id="cb10"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb10-1"><a href="#cb10-1" aria-hidden="true" tabindex="-1"></a>only_at_sites <span class="ot">&lt;-</span> res <span class="sc">|&gt;</span> </span>
+<span id="cb10-2"><a href="#cb10-2" aria-hidden="true" tabindex="-1"></a>  dplyr<span class="sc">::</span><span class="fu">filter</span>(prop <span class="sc">&gt;</span> <span class="dv">0</span>) <span class="sc">|&gt;</span> </span>
+<span id="cb10-3"><a href="#cb10-3" aria-hidden="true" tabindex="-1"></a>  dplyr<span class="sc">::</span><span class="fu">filter</span>(scale <span class="sc">!=</span> <span class="st">"Ecodistrict"</span>) <span class="sc">|&gt;</span> </span>
+<span id="cb10-4"><a href="#cb10-4" aria-hidden="true" tabindex="-1"></a>  dplyr<span class="sc">::</span><span class="fu">pull</span>(label)</span>
+<span id="cb10-5"><a href="#cb10-5" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb10-6"><a href="#cb10-6" aria-hidden="true" tabindex="-1"></a>res_filt <span class="ot">&lt;-</span> res <span class="sc">|&gt;</span> </span>
+<span id="cb10-7"><a href="#cb10-7" aria-hidden="true" tabindex="-1"></a>  dplyr<span class="sc">::</span><span class="fu">filter</span>(label <span class="sc">%in%</span> only_at_sites)</span>
+<span id="cb10-8"><a href="#cb10-8" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb10-9"><a href="#cb10-9" aria-hidden="true" tabindex="-1"></a><span class="fu">ggplot</span>(res_filt) <span class="sc">+</span></span>
+<span id="cb10-10"><a href="#cb10-10" aria-hidden="true" tabindex="-1"></a>  <span class="fu">geom_bar</span>(<span class="fu">aes</span>(<span class="at">x =</span> label, <span class="at">y =</span> prop, <span class="at">fill =</span> scale, <span class="at">colour =</span> scale), </span>
+<span id="cb10-11"><a href="#cb10-11" aria-hidden="true" tabindex="-1"></a>           <span class="at">alpha =</span> <span class="fl">0.8</span>,</span>
+<span id="cb10-12"><a href="#cb10-12" aria-hidden="true" tabindex="-1"></a>           <span class="at">stat =</span> <span class="st">"identity"</span>,</span>
+<span id="cb10-13"><a href="#cb10-13" aria-hidden="true" tabindex="-1"></a>           <span class="at">position =</span> <span class="st">"dodge"</span>) <span class="sc">+</span></span>
+<span id="cb10-14"><a href="#cb10-14" aria-hidden="true" tabindex="-1"></a>  <span class="fu">theme_bw</span>() <span class="sc">+</span></span>
+<span id="cb10-15"><a href="#cb10-15" aria-hidden="true" tabindex="-1"></a>  <span class="fu">theme</span>(<span class="at">axis.text.x =</span> <span class="fu">element_text</span>(<span class="at">angle =</span> <span class="dv">20</span>, <span class="at">vjust =</span> <span class="dv">1</span>, <span class="at">hjust =</span> <span class="dv">1</span>)) <span class="sc">+</span></span>
+<span id="cb10-16"><a href="#cb10-16" aria-hidden="true" tabindex="-1"></a>  <span class="fu">labs</span>(<span class="at">x =</span> <span class="st">"Land Use Class"</span>, <span class="at">y =</span> <span class="st">"Sum of Proportions"</span>,</span>
+<span id="cb10-17"><a href="#cb10-17" aria-hidden="true" tabindex="-1"></a>       <span class="at">fill =</span> <span class="st">"Scale"</span>, <span class="at">colour =</span> <span class="st">"Scale"</span>) <span class="sc">+</span></span>
+<span id="cb10-18"><a href="#cb10-18" aria-hidden="true" tabindex="-1"></a>  <span class="fu">scale_fill_manual</span>(<span class="at">values =</span> my_pal) <span class="sc">+</span></span>
+<span id="cb10-19"><a href="#cb10-19" aria-hidden="true" tabindex="-1"></a>  <span class="fu">scale_color_manual</span>(<span class="at">values =</span> my_pal)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="cell-output-display">
+<div>
+<figure class="figure">
+<p><img src="index_files/figure-html/unnamed-chunk-15-1.png" class="img-fluid figure-img" data-fig-pos="H" width="1248"></p>
 </figure>
 </div>
 </div>

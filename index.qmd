@@ -183,6 +183,8 @@ And then combine the results between scales and utm.
 
 ```{r}
 res <- rbind(res_points, res_ecodistrict) |> 
+  tidyr::complete(scale, label) |> 
+  tidyr::replace_na(list(prop = 0)) |> 
   dplyr::mutate(label =  forcats::fct_reorder(label, prop))
 ```
 
@@ -195,6 +197,30 @@ We can plot the results with "dodged" ggplot2 barplots.
 my_pal <- c('#c7e9b4','#7fcdbb','#41b6c4','#1d91c0','#225ea8','#0c2c84')
 
 ggplot(res) +
+  geom_bar(aes(x = label, y = prop, fill = scale, colour = scale), 
+           alpha = 0.8,
+           stat = "identity",
+           position = "dodge") +
+  theme_bw() +
+  theme(axis.text.x = element_text(angle = 20, vjust = 1, hjust = 1)) +
+  labs(x = "Land Use Class", y = "Sum of Proportions",
+       fill = "Scale", colour = "Scale") +
+  scale_fill_manual(values = my_pal) +
+  scale_color_manual(values = my_pal)
+```
+
+Removing the land use classes than are not present around sites, we get a slightly easier graph to read.
+
+```{r fig.width=13, fig.height=8}
+only_at_sites <- res |> 
+  dplyr::filter(prop > 0) |> 
+  dplyr::filter(scale != "Ecodistrict") |> 
+  dplyr::pull(label)
+
+res_filt <- res |> 
+  dplyr::filter(label %in% only_at_sites)
+
+ggplot(res_filt) +
   geom_bar(aes(x = label, y = prop, fill = scale, colour = scale), 
            alpha = 0.8,
            stat = "identity",
