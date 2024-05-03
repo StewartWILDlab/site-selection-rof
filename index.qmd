@@ -203,7 +203,7 @@ ggplot(res) +
            position = "dodge") +
   theme_bw() +
   theme(axis.text.x = element_text(angle = 20, vjust = 1, hjust = 1)) +
-  labs(x = "Land Use Class", y = "Sum of Proportions",
+  labs(x = "Land Use Class", y = "Proportion",
        fill = "Scale", colour = "Scale") +
   scale_fill_manual(values = my_pal) +
   scale_color_manual(values = my_pal)
