@@ -7,25 +7,46 @@ knitr::opts_chunk$set(fig.pos = "H", out.extra = "")
 backup_options <- options()
 options(scipen = 1, digits = 2)
 do_eval <- FALSE
+
+# Loading ggplot as it is cumbersome to use :: notation for it
+library(ggplot2)
 ```
 
 ## Loading data
 
-We load the possible sites (`quiet = TRUE` is for not displaying verbose loading information). We also load the two halves of the far north land cover dataset, along with the the attribute table of land cover classes.
+We load the possible sites (`quiet = TRUE` is for not displaying verbose loading information). We also load the two halves of the far north land cover dataset, along with the the attribute table of land cover classes. We load the ecodistrict data and select for the relevant lowlands disctrict, coded as 1028.
 
 ```{r message=FALSE}
 sites_possible <- sf::st_read(
   "data/Peat/GRTS_PossibleCaARU_sample_draw_base.shp", 
   quiet = TRUE)
+ecodistrict <- sf::st_read(
+  "data/ecodistrict_shp/Ecodistricts/ecodistricts.shp", 
+  quiet = TRUE) |> 
+  dplyr::filter(ECODISTRIC == 1028)
 lu_16 <- raster::raster("data/land_use/FarNorth_LandCover_Class_UTM16.tif")
 lu_17 <- raster::raster("data/land_use/FarNorth_LandCover_Class_UTM17.tif")
 lu_dat <- readr::read_csv("data/land_use/attr_table_northen_ont_lc.txt") |>
   dplyr::mutate(cats = as.factor(code))
 ```
 
+## Plotting spatial data
+
+It is always a good idea to try and plot spatial data before any processing.
+
+```{r fig.width=13}
+ggplot() +
+  geom_sf(data = ecodistrict) +
+  geom_sf(data = sf::st_transform(sites_possible, 
+                                  sf::st_crs(ecodistrict))) +
+  theme_bw()
+```
+
+Plotting the land cover data is difficult because it is provided is two different UTMs.
+
 ## Extracting Land Cover data
 
-The following functions will take care of land cover extraction.
+The following functions will take care of land cover extraction for sites.
 
 ```{r message=FALSE}
 extract_from_points <- function(scale_m, sites, lu) {
@@ -47,7 +68,7 @@ extract_from_points <- function(scale_m, sites, lu) {
     dplyr::relocate(id)
   
   return(extr_df)
-   
+  
 }
 
 compute_land_cover <- function(scale_m, sites, 
@@ -79,32 +100,96 @@ compute_land_cover <- function(scale_m, sites,
     dplyr::ungroup()
   
   return(extr_table_sum)
-
+  
 }
 ```
 
 We extract at different scales (buffer radius around points): 1 m, 50 m, 100 m and 1 km.
 
 ```{r message=FALSE}
-res <- mapply(FUN = compute_land_cover, c(`1 m` = 1, `50 m` = 50,
-                                          `100 m` = 100, `1 km` = 1000),
-              MoreArgs = list(
-                sites = sites_possible,
-                lu_16 = lu_16, lu_17 = lu_17, lu_dat = lu_dat),
-              SIMPLIFY = F) |>
+res_points <- mapply(FUN = compute_land_cover, 
+                     c(`1 m` = 1, `50 m` = 50,
+                       `100 m` = 100, `1 km` = 1000),
+                     MoreArgs = list(
+                       sites = sites_possible,
+                       lu_16 = lu_16, lu_17 = lu_17, lu_dat = lu_dat),
+                     SIMPLIFY = F) |>
   dplyr::bind_rows(.id = 'scale') |>
   dplyr::mutate(scale = forcats::fct_relevel(scale, "1 m", "50 m",
                                              "100 m", "1 km"),
                 label =  forcats::fct_reorder(label, prop_sum)) |> 
   dplyr::arrange(scale, dplyr::desc(prop_sum))
 
-knitr::kable(res)
+knitr::kable(res_points)
 ```
+
+We also want to do the same operation for the ecodistrict to allow for comparison. We also make some simple functions.
+
+```{r}
+extract_from_ecodistrict <- function(poly, lu) {
+  
+  poly_tr <- poly |>
+    sf::st_transform(sf::st_crs(lu))
+  
+  extr_df <- exactextractr::exact_extract(lu, poly_tr,
+                                          progress = FALSE) |> 
+    unlist()
+  
+  return(extr_df)
+  
+}
+
+compute_land_cover_ecodistict <- function(poly, lu_16, lu_17, lu_dat) {
+  
+  message("Extracting...")
+  extr_16_df <- extract_from_ecodistrict(poly, lu_16)
+  message("Extracting...")
+  extr_17_df <- extract_from_ecodistrict(poly, lu_17)
+  message("Extraction done.")
+  
+  extr <- rbind(extr_16_df, extr_17_df)
+  
+  extr_table <- extr |>
+    dplyr::group_by(value) |>
+    dplyr::summarise(coverage_fraction_sum = sum(coverage_fraction)) |>
+    dplyr::mutate(props = 
+                    coverage_fraction_sum/sum(coverage_fraction_sum)) |>
+    dplyr::ungroup()  |>
+    dplyr::mutate(value = as.factor(value)) |>
+    dplyr::left_join(lu_dat, by = c("value" = "cats")) |>
+    dplyr::select(category_code, props, label)
+  
+  extr_table[is.na(extr_table)] <- 0
+  
+  extr_table_sum <- extr_table |>
+    dplyr::group_by(category_code, label) |>
+    dplyr::summarise(prop_sum = sum(props)) |>
+    dplyr::ungroup()
+  
+  return(extr_table_sum)
+  
+}
+```
+
+An apply them
+
+```{r}
+res_ecodistrict <- compute_land_cover_ecodistict(ecodistrict,
+                                                 lu_16, lu_17, lu_dat)
+knitr::kable(head(res_ecodistrict))
+```
+
+Finally we combine the results.
+
+```{r}
+res <- dplyr::bind_rows(res_points)
+```
+
+## Results
 
 We can plot the results with "dodged" ggplot2 barplots.
 
-```{r}
-library(ggplot2)
+```{r fig.width=13, fig.height=8}
 
 my_pal <- c('#c7e9b4','#7fcdbb','#41b6c4','#2c7fb8','#253494')
 
@@ -120,4 +205,3 @@ ggplot(res) +
   scale_fill_manual(values = my_pal) +
   scale_color_manual(values = my_pal)
 ```
-
