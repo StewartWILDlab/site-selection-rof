@@ -185,7 +185,7 @@ And then combine the results between scales and utm.
 res <- rbind(res_points, res_ecodistrict) |> 
   tidyr::complete(scale, label) |> 
   tidyr::replace_na(list(prop = 0)) |> 
-  dplyr::mutate(label =  forcats::fct_reorder(label, prop))
+  dplyr::mutate(label = forcats::fct_reorder(label, prop))
 ```
 
 ## Results
@@ -227,7 +227,7 @@ ggplot(res_filt) +
            position = "dodge") +
   theme_bw() +
   theme(axis.text.x = element_text(angle = 20, vjust = 1, hjust = 1)) +
-  labs(x = "Land Use Class", y = "Sum of Proportions",
+  labs(x = "Land Use Class", y = "Proportion",
        fill = "Scale", colour = "Scale") +
   scale_fill_manual(values = my_pal) +
   scale_color_manual(values = my_pal)

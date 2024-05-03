@@ -11,6 +11,11 @@ website:
       - section: "Site Analysis"
         contents:
           - index.qmd
+    tools:
+      - icon: github
+        menu:
+          - text: Source Code
+            href:  https://github.com/StewartWILDlab/site-selection-rof
 
 format:
   html:
