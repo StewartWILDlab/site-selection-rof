@@ -83,23 +83,18 @@ compute_land_cover <- function(scale_m, sites,
     dplyr::arrange(id, value)
   
   extr_table <- extr |>
-    dplyr::group_by(id, value) |>
+    dplyr::group_by(value) |>
     dplyr::summarise(coverage_fraction_sum = sum(coverage_fraction)) |>
-    dplyr::mutate(props = 
+    dplyr::mutate(prop = 
                     coverage_fraction_sum/sum(coverage_fraction_sum)) |>
     dplyr::ungroup()  |>
     dplyr::mutate(value = as.factor(value)) |>
     dplyr::left_join(lu_dat, by = c("value" = "cats")) |>
-    dplyr::select(id, category_code, props, label)
+    dplyr::select(category_code, prop, label)
   
   extr_table[is.na(extr_table)] <- 0
   
-  extr_table_sum <- extr_table |>
-    dplyr::group_by(category_code, label) |>
-    dplyr::summarise(prop_sum = sum(props)) |>
-    dplyr::ungroup()
-  
-  return(extr_table_sum)
+  return(extr_table)
   
 }
 ```
@@ -117,72 +112,78 @@ res_points <- mapply(FUN = compute_land_cover,
   dplyr::bind_rows(.id = 'scale') |>
   dplyr::mutate(scale = forcats::fct_relevel(scale, "1 m", "50 m",
                                              "100 m", "1 km"),
-                label =  forcats::fct_reorder(label, prop_sum)) |> 
-  dplyr::arrange(scale, dplyr::desc(prop_sum))
+                label =  forcats::fct_reorder(label, prop)) |> 
+  dplyr::arrange(scale, dplyr::desc(prop))
 
 knitr::kable(res_points)
 ```
 
-We also want to do the same operation for the ecodistrict to allow for comparison. We also make some simple functions.
+We also want to do the same operation for the ecodistrict to allow for comparison. We don't need to use exact extraction, insteadt the crop and mask each raster. This operation is costly so we write out the rasters and load them again (see unrendered code).
 
-```{r}
-extract_from_ecodistrict <- function(poly, lu) {
-  
-  poly_tr <- poly |>
-    sf::st_transform(sf::st_crs(lu))
-  
-  extr_df <- exactextractr::exact_extract(lu, poly_tr,
-                                          progress = FALSE) |> 
-    unlist()
-  
-  return(extr_df)
-  
-}
+```{r eval=FALSE}
+ecodistrict_16 <- sf::st_transform(ecodistrict, sf::st_crs(lu_16))
+ecodistrict_17 <- sf::st_transform(ecodistrict, sf::st_crs(lu_17))
 
-compute_land_cover_ecodistict <- function(poly, lu_16, lu_17, lu_dat) {
-  
-  message("Extracting...")
-  extr_16_df <- extract_from_ecodistrict(poly, lu_16)
-  message("Extracting...")
-  extr_17_df <- extract_from_ecodistrict(poly, lu_17)
-  message("Extraction done.")
-  
-  extr <- rbind(extr_16_df, extr_17_df)
-  
-  extr_table <- extr |>
-    dplyr::group_by(value) |>
-    dplyr::summarise(coverage_fraction_sum = sum(coverage_fraction)) |>
-    dplyr::mutate(props = 
-                    coverage_fraction_sum/sum(coverage_fraction_sum)) |>
-    dplyr::ungroup()  |>
-    dplyr::mutate(value = as.factor(value)) |>
-    dplyr::left_join(lu_dat, by = c("value" = "cats")) |>
-    dplyr::select(category_code, props, label)
-  
-  extr_table[is.na(extr_table)] <- 0
-  
-  extr_table_sum <- extr_table |>
-    dplyr::group_by(category_code, label) |>
-    dplyr::summarise(prop_sum = sum(props)) |>
-    dplyr::ungroup()
-  
-  return(extr_table_sum)
-  
-}
+lu_16_crop <- raster::crop(lu_16, ecodistrict_16)
+lu_16_crop_mask <- raster::mask(lu_16_crop, ecodistrict_16)
+
+lu_17_crop <- raster::crop(lu_17, ecodistrict_17)
+lu_17_crop_mask <- raster::mask(lu_17_crop, ecodistrict_17)
 ```
 
-An apply them
-
-```{r}
-res_ecodistrict <- compute_land_cover_ecodistict(ecodistrict,
-                                                 lu_16, lu_17, lu_dat)
-knitr::kable(head(res_ecodistrict))
+```{r eval=FALSE, include=FALSE}
+raster::writeRaster(lu_16_crop_mask, "data/lu_16_crop_mask.tif")
+raster::writeRaster(lu_17_crop_mask, "data/lu_17_crop_mask.tif")
 ```
 
-Finally we combine the results.
+```{r eval=TRUE, include=FALSE}
+lu_16_crop_mask <- raster::raster("data/lu_16_crop_mask.tif")
+lu_17_crop_mask <- raster::raster("data/lu_17_crop_mask.tif")
+```
+
+We can then get the frequencies of values. This operation is also costly so we write out the objects and load them again (see unrendered code).
+
+```{r eval=FALSE}
+lu_16_freq <- raster::freq(lu_16_crop_mask)
+lu_17_freq <- raster::freq(lu_17_crop_mask)
+```
+
+```{r eval=FALSE, include=FALSE}
+saveRDS(lu_16_freq, "data/lu_16_freq.rds")
+saveRDS(lu_17_freq, "data/lu_17_freq.rds")
+```
+
+```{r eval=TRUE, include=FALSE}
+lu_16_freq <- readRDS("data/lu_16_freq.rds")
+lu_17_freq <- readRDS("data/lu_17_freq.rds")
+```
+
+We combine the results of both UTMs.
 
 ```{r}
-res <- dplyr::bind_rows(res_points)
+res_ecodistrict <- rbind(lu_16_freq, lu_17_freq) |>
+  as.data.frame() |> 
+  dplyr::group_by(value) |> 
+  dplyr::summarise(count = sum(count)) |> 
+  dplyr::ungroup() |> 
+  dplyr::filter(!is.na(value)) |> 
+  dplyr::mutate(prop = count/sum(count)) |> 
+  dplyr::mutate(value = as.factor(value)) |>
+  dplyr::left_join(lu_dat, by = c("value" = "cats")) |>
+  dplyr::filter(!is.na(label)) |> 
+  dplyr::select(category_code, prop, label) |> 
+  dplyr::mutate(scale = "Ecodistrict") |> 
+  dplyr::relocate(scale) |>
+  dplyr::arrange(scale, dplyr::desc(prop))
+
+knitr::kable(res_ecodistrict)
+```
+
+And then combine the results between scales and utm.
+
+```{r}
+res <- rbind(res_points, res_ecodistrict) |> 
+  dplyr::mutate(label =  forcats::fct_reorder(label, prop))
 ```
 
 ## Results
@@ -191,10 +192,10 @@ We can plot the results with "dodged" ggplot2 barplots.
 
 ```{r fig.width=13, fig.height=8}
 
-my_pal <- c('#c7e9b4','#7fcdbb','#41b6c4','#2c7fb8','#253494')
+my_pal <- c('#c7e9b4','#7fcdbb','#41b6c4','#1d91c0','#225ea8','#0c2c84')
 
 ggplot(res) +
-  geom_bar(aes(x = label, y = prop_sum, fill = scale, colour = scale), 
+  geom_bar(aes(x = label, y = prop, fill = scale, colour = scale), 
            alpha = 0.8,
            stat = "identity",
            position = "dodge") +
