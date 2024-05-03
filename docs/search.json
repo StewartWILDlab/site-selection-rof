@@ -1,0 +1,42 @@
+[
+  {
+    "objectID": "index.html",
+    "href": "index.html",
+    "title": "Land Cover Analysis",
+    "section": "",
+    "text": "We load the possible sites (quiet = TRUE is for not displaying verbose loading information). We also load the two halves of the far north land cover dataset, along with the the attribute table of land cover classes.\n\nsites_possible &lt;- sf::st_read(\n  \"data/Peat/GRTS_PossibleCaARU_sample_draw_base.shp\", \n  quiet = TRUE)\nlu_16 &lt;- raster::raster(\"data/land_use/FarNorth_LandCover_Class_UTM16.tif\")\nlu_17 &lt;- raster::raster(\"data/land_use/FarNorth_LandCover_Class_UTM17.tif\")\nlu_dat &lt;- readr::read_csv(\"data/land_use/attr_table_northen_ont_lc.txt\") |&gt;\n  dplyr::mutate(cats = as.factor(code))",
+    "crumbs": [
+      "Site Analysis",
+      "Land Cover Analysis"
+    ]
+  },
+  {
+    "objectID": "index.html#loading-data",
+    "href": "index.html#loading-data",
+    "title": "Land Cover Analysis",
+    "section": "",
+    "text": "We load the possible sites (quiet = TRUE is for not displaying verbose loading information). We also load the two halves of the far north land cover dataset, along with the the attribute table of land cover classes.\n\nsites_possible &lt;- sf::st_read(\n  \"data/Peat/GRTS_PossibleCaARU_sample_draw_base.shp\", \n  quiet = TRUE)\nlu_16 &lt;- raster::raster(\"data/land_use/FarNorth_LandCover_Class_UTM16.tif\")\nlu_17 &lt;- raster::raster(\"data/land_use/FarNorth_LandCover_Class_UTM17.tif\")\nlu_dat &lt;- readr::read_csv(\"data/land_use/attr_table_northen_ont_lc.txt\") |&gt;\n  dplyr::mutate(cats = as.factor(code))",
+    "crumbs": [
+      "Site Analysis",
+      "Land Cover Analysis"
+    ]
+  },
+  {
+    "objectID": "index.html#extracting-land-cover-data",
+    "href": "index.html#extracting-land-cover-data",
+    "title": "Land Cover Analysis",
+    "section": "Extracting Land Cover data",
+    "text": "Extracting Land Cover data\nThe following functions will take care of land cover extraction.\n\nextract_from_points &lt;- function(scale_m, sites, lu) {\n  \n  sites_buffer &lt;- sites |&gt;\n    sf::st_transform(sf::st_crs(lu)) |&gt; \n    sf::st_buffer(dist = scale_m) |&gt; \n    dplyr::select(siteID)\n  \n  extr &lt;- exactextractr::exact_extract(lu, sites_buffer,\n                                       progress = FALSE)\n  \n  extr &lt;- mapply(extr, 1:length(extr), \n                 FUN = \\(x, y) dplyr::mutate(x, id = y),\n                 SIMPLIFY = F)\n  \n  extr_df &lt;- do.call(rbind, extr) |&gt;\n    dplyr::filter(!is.na(value)) |&gt;\n    dplyr::relocate(id)\n  \n  return(extr_df)\n   \n}\n\ncompute_land_cover &lt;- function(scale_m, sites, \n                               lu_16, lu_17, lu_dat) {\n  \n  extr_16_df &lt;- extract_from_points(scale_m, sites, lu_16)\n  extr_17_df &lt;- extract_from_points(scale_m, sites, lu_17)\n  \n  stopifnot(all(!(extr_16_df$siteID %in% extr_17_df$siteID)))\n  \n  extr &lt;- rbind(extr_16_df, extr_17_df) |&gt;\n    dplyr::arrange(id, value)\n  \n  extr_table &lt;- extr |&gt;\n    dplyr::group_by(id, value) |&gt;\n    dplyr::summarise(coverage_fraction_sum = sum(coverage_fraction)) |&gt;\n    dplyr::mutate(props = \n                    coverage_fraction_sum/sum(coverage_fraction_sum)) |&gt;\n    dplyr::ungroup()  |&gt;\n    dplyr::mutate(value = as.factor(value)) |&gt;\n    dplyr::left_join(lu_dat, by = c(\"value\" = \"cats\")) |&gt;\n    dplyr::select(id, category_code, props, label)\n  \n  extr_table[is.na(extr_table)] &lt;- 0\n  \n  extr_table_sum &lt;- extr_table |&gt;\n    dplyr::group_by(category_code, label) |&gt;\n    dplyr::summarise(prop_sum = sum(props)) |&gt;\n    dplyr::ungroup()\n  \n  return(extr_table_sum)\n\n}\n\nWe extract at different scales (buffer radius around points): 1 m, 50 m, 100 m and 1 km.\n\nres &lt;- mapply(FUN = compute_land_cover, c(`1 m` = 1, `50 m` = 50,\n                                          `100 m` = 100, `1 km` = 1000),\n              MoreArgs = list(\n                sites = sites_possible,\n                lu_16 = lu_16, lu_17 = lu_17, lu_dat = lu_dat),\n              SIMPLIFY = F) |&gt;\n  dplyr::bind_rows(.id = 'scale') |&gt;\n  dplyr::mutate(scale = forcats::fct_relevel(scale, \"1 m\", \"50 m\",\n                                             \"100 m\", \"1 km\"),\n                label =  forcats::fct_reorder(label, prop_sum)) |&gt; \n  dplyr::arrange(scale, dplyr::desc(prop_sum))\n\nknitr::kable(res)\n\n\n\n\nscale\ncategory_code\nlabel\nprop_sum\n\n\n\n\n1 m\nTrBOG\nTreed Bog\n13.00\n\n\n1 m\nTrFEN\nTreed Fen\n11.34\n\n\n1 m\nOBOG\nOpen Bog\n10.00\n\n\n1 m\nConSWA\nConiferous Swamp\n5.66\n\n\n1 m\nConTRE\nConiferous Treed\n5.00\n\n\n1 m\nOFEN\nOpen Fen\n3.00\n\n\n1 m\nMixTRE\nMixed Treed\n1.00\n\n\n1 m\nSpTRE\nSparse Treed\n1.00\n\n\n50 m\nTrBOG\nTreed Bog\n11.69\n\n\n50 m\nTrFEN\nTreed Fen\n10.93\n\n\n50 m\nOBOG\nOpen Bog\n10.56\n\n\n50 m\nConSWA\nConiferous Swamp\n5.81\n\n\n50 m\nConTRE\nConiferous Treed\n4.50\n\n\n50 m\nOFEN\nOpen Fen\n3.71\n\n\n50 m\nSpTRE\nSparse Treed\n1.38\n\n\n50 m\nMixTRE\nMixed Treed\n0.76\n\n\n50 m\nWAT\nClear Open Water\n0.61\n\n\n50 m\nXWAT\nTurbid Water\n0.05\n\n\n100 m\nTrBOG\nTreed Bog\n11.32\n\n\n100 m\nTrFEN\nTreed Fen\n10.83\n\n\n100 m\nOBOG\nOpen Bog\n9.82\n\n\n100 m\nConSWA\nConiferous Swamp\n6.03\n\n\n100 m\nConTRE\nConiferous Treed\n4.84\n\n\n100 m\nOFEN\nOpen Fen\n4.07\n\n\n100 m\nWAT\nClear Open Water\n1.36\n\n\n100 m\nSpTRE\nSparse Treed\n0.80\n\n\n100 m\nMixTRE\nMixed Treed\n0.67\n\n\n100 m\nXWAT\nTurbid Water\n0.25\n\n\n1 km\nTrFEN\nTreed Fen\n10.69\n\n\n1 km\nTrBOG\nTreed Bog\n10.59\n\n\n1 km\nOBOG\nOpen Bog\n9.50\n\n\n1 km\nConSWA\nConiferous Swamp\n8.33\n\n\n1 km\nOFEN\nOpen Fen\n3.74\n\n\n1 km\nConTRE\nConiferous Treed\n3.21\n\n\n1 km\nWAT\nClear Open Water\n2.21\n\n\n1 km\nMixTRE\nMixed Treed\n0.66\n\n\n1 km\nXWAT\nTurbid Water\n0.41\n\n\n1 km\nThSWA\nThicket Swamp\n0.35\n\n\n1 km\nSpTRE\nSparse Treed\n0.14\n\n\n1 km\nNSWood\nDisturbance - Non and Sparse Woody\n0.12\n\n\n1 km\nDecTRE\nDeciduous Treed\n0.02\n\n\n1 km\nTrOrSHr\nDisturbance - Treed and/or Shrub\n0.01\n\n\n1 km\nBED\nBedrock\n0.00\n\n\n\n\n\nWe can plot the results with “dodged” ggplot2 barplots.\n\nlibrary(ggplot2)\n\nmy_pal &lt;- c('#c7e9b4','#7fcdbb','#41b6c4','#2c7fb8','#253494')\n\nggplot(res) +\n  geom_bar(aes(x = label, y = prop_sum, fill = scale, colour = scale), \n           alpha = 0.8,\n           stat = \"identity\",\n           position = \"dodge\") +\n  theme_bw() +\n  theme(axis.text.x = element_text(angle = 20, vjust = 1, hjust = 1)) +\n  labs(x = \"Land Use Class\", y = \"Sum of Proportions\",\n       fill = \"Scale\", colour = \"Scale\") +\n  scale_fill_manual(values = my_pal) +\n  scale_color_manual(values = my_pal)",
+    "crumbs": [
+      "Site Analysis",
+      "Land Cover Analysis"
+    ]
+  },
+  {
+    "objectID": "about.html",
+    "href": "about.html",
+    "title": "About",
+    "section": "",
+    "text": "About this site\n\n1 + 1\n\n[1] 2"
+  }
+]

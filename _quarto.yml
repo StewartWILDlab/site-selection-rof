@@ -1,0 +1,21 @@
+project:
+  type: website
+  output-dir: docs
+
+website:
+  title: "ROF Site Selection"
+  sidebar:
+    style: "docked"
+    search: true
+    contents:
+      - section: "Site Analysis"
+        contents:
+          - index.qmd
+
+format:
+  html:
+    theme: cosmo
+    css: styles.css
+    toc: true
+
+editor: visual
