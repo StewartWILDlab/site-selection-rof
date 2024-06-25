@@ -253,6 +253,12 @@ res_points_by_site <-
 DT::datatable(res_points_by_site)
 ```
 
+We save this table.
+
+```{r}
+readr::write_csv(res_points_by_site, "outputs/res_points_by_site.csv")
+```
+
 ## Results
 
 We can plot the results with "dodged" ggplot2 barplots.
