@@ -250,7 +250,7 @@ res_points_by_site <-
   dplyr::ungroup() |> 
   dplyr::arrange(fullID)
 
-knitr::kable(res_points_by_site)
+DT::datatable(res_points_by_site)
 ```
 
 ## Results
