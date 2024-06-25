@@ -18,8 +18,20 @@ We load the possible sites (`quiet = TRUE` is for not displaying verbose loading
 
 ```{r message=FALSE}
 sites_possible <- sf::st_read(
-  "data/Peat/GRTS_PossibleCaARU_sample_draw_base.shp", 
-  quiet = TRUE)
+  "data/sites/GRTS_PossibleCaARU_sample_draw_base.shp", 
+  quiet = TRUE) |> 
+  dplyr::mutate(source = "GRTS_PossibleCaARU_sample_draw_base") |> 
+  dplyr::mutate(fullID = paste(SampleID, ID, source, sep = "_"))
+
+additional_sites <- readr::read_csv("data/sites/Selected_Peat_Sites.csv") |> 
+  sf::st_as_sf(coords=c("lon_WGS84", "lat_WGS84"), crs = 4326)  |> 
+  sf::st_transform(sf::st_crs(sites_possible)) |> 
+  dplyr::mutate(source = "Selected_Peat_Sites") |> 
+  dplyr::mutate(fullID = paste(SampleID, ID, source, sep = "_"))
+
+all_sites <- sites_possible |> 
+  dplyr::bind_rows(additional_sites)
+
 ecodistrict <- sf::st_read(
   "data/ecodistrict_shp/Ecodistricts/ecodistricts.shp", 
   quiet = TRUE) |> 
@@ -37,7 +49,7 @@ It is always a good idea to try and plot spatial data before any processing.
 ```{r fig.width=13}
 ggplot() +
   geom_sf(data = ecodistrict) +
-  geom_sf(data = sf::st_transform(sites_possible, 
+  geom_sf(data = sf::st_transform(all_sites, 
                                   sf::st_crs(ecodistrict))) +
   theme_bw()
 ```
@@ -54,10 +66,11 @@ extract_from_points <- function(scale_m, sites, lu) {
   sites_buffer <- sites |>
     sf::st_transform(sf::st_crs(lu)) |> 
     sf::st_buffer(dist = scale_m) |> 
-    dplyr::select(siteID)
+    dplyr::select(fullID)
   
   extr <- exactextractr::exact_extract(lu, sites_buffer,
-                                       progress = FALSE)
+                                       progress = FALSE,
+                                       include_cols = "fullID")
   
   extr <- mapply(extr, 1:length(extr), 
                  FUN = \(x, y) dplyr::mutate(x, id = y),
@@ -72,7 +85,8 @@ extract_from_points <- function(scale_m, sites, lu) {
 }
 
 compute_land_cover <- function(scale_m, sites, 
-                               lu_16, lu_17, lu_dat) {
+                               lu_16, lu_17, lu_dat,
+                               summarise_all = TRUE) {
   
   extr_16_df <- extract_from_points(scale_m, sites, lu_16)
   extr_17_df <- extract_from_points(scale_m, sites, lu_17)
@@ -82,15 +96,31 @@ compute_land_cover <- function(scale_m, sites,
   extr <- rbind(extr_16_df, extr_17_df) |>
     dplyr::arrange(id, value)
   
-  extr_table <- extr |>
-    dplyr::group_by(value) |>
-    dplyr::summarise(coverage_fraction_sum = sum(coverage_fraction)) |>
-    dplyr::mutate(prop = 
-                    coverage_fraction_sum/sum(coverage_fraction_sum)) |>
-    dplyr::ungroup()  |>
-    dplyr::mutate(value = as.factor(value)) |>
-    dplyr::left_join(lu_dat, by = c("value" = "cats")) |>
-    dplyr::select(category_code, prop, label)
+  if (summarise_all) {
+    
+    extr_table <- extr |>
+      dplyr::group_by(value) |>
+      dplyr::summarise(coverage_fraction_sum = sum(coverage_fraction)) |>
+      dplyr::mutate(prop = 
+                      coverage_fraction_sum/sum(coverage_fraction_sum)) |>
+      dplyr::ungroup()  |>
+      dplyr::mutate(value = as.factor(value)) |>
+      dplyr::left_join(lu_dat, by = c("value" = "cats")) |>
+      dplyr::select(category_code, prop, label)
+         
+  } else {
+    
+     extr_table <- extr |>
+      dplyr::group_by(fullID, value) |>
+      dplyr::summarise(coverage_fraction_sum = sum(coverage_fraction)) |>
+      dplyr::mutate(prop = 
+                      coverage_fraction_sum/sum(coverage_fraction_sum)) |>
+      dplyr::ungroup()  |>
+      dplyr::mutate(value = as.factor(value)) |>
+      dplyr::left_join(lu_dat, by = c("value" = "cats")) |>
+      dplyr::select(fullID, category_code, prop, label)
+    
+  }
   
   extr_table[is.na(extr_table)] <- 0
   
@@ -132,8 +162,10 @@ lu_17_crop_mask <- raster::mask(lu_17_crop, ecodistrict_17)
 ```
 
 ```{r eval=FALSE, include=FALSE}
-raster::writeRaster(lu_16_crop_mask, "data/lu_16_crop_mask.tif")
-raster::writeRaster(lu_17_crop_mask, "data/lu_17_crop_mask.tif")
+raster::writeRaster(lu_16_crop_mask, "data/lu_16_crop_mask.tif", 
+                    overwrite=TRUE)
+raster::writeRaster(lu_17_crop_mask, "data/lu_17_crop_mask.tif", 
+                    overwrite=TRUE)
 ```
 
 ```{r eval=TRUE, include=FALSE}
@@ -186,6 +218,39 @@ res <- rbind(res_points, res_ecodistrict) |>
   tidyr::complete(scale, label) |> 
   tidyr::replace_na(list(prop = 0)) |> 
   dplyr::mutate(label = forcats::fct_reorder(label, prop))
+```
+
+For individual site identity, at different scales:
+
+```{r}
+res_points_by_site <- 
+  mapply(FUN = compute_land_cover, 
+         c(`1 m` = 1, `50 m` = 50,
+           `100 m` = 100, `1 km` = 1000),
+         MoreArgs = list(
+           sites = sites_possible,
+           lu_16 = lu_16, lu_17 = lu_17, lu_dat = lu_dat),
+           summarise_all = FALSE,
+         SIMPLIFY = F) |>
+  dplyr::bind_rows(.id = 'scale') |>
+  dplyr::mutate(scale = forcats::fct_relevel(scale, "1 m", "50 m",
+                                             "100 m", "1 km"),
+                label =  forcats::fct_reorder(label, prop)) |>
+  
+  dplyr::group_by(scale, fullID)  |> 
+  dplyr::arrange(dplyr::desc(prop)) |> 
+  dplyr::rename(primary_category_code = category_code,
+                primary_prop = prop,
+                primary_label = label) |> 
+  dplyr::mutate(secondary_category_code = primary_category_code[2],
+                secondary_prop = primary_prop[2],
+                secondary_label = primary_label[2],
+                prop_sum = primary_prop + secondary_prop) |> 
+  dplyr::slice(1) |> 
+  dplyr::ungroup() |> 
+  dplyr::arrange(fullID)
+
+knitr::kable(res_points_by_site)
 ```
 
 ## Results
