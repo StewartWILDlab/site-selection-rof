@@ -12,26 +12,42 @@ do_eval <- FALSE
 library(ggplot2)
 ```
 
-## Loading data
+## Using renv
 
-We load the possible sites (`quiet = TRUE` is for not displaying verbose loading information). We also load the two halves of the far north land cover dataset, along with the the attribute table of land cover classes. We load the ecodistrict data and select for the relevant lowlands disctrict, coded as 1028.
+To reproduce this analysis, make sure to restore the renv environment.
+
+```{r eval=FALSE}
+# install.packages("renv")
+renv::restore()
+```
+
+## Loading sites data (before 2025)
+
+We load the possible sites (`quiet = TRUE` is for not displaying verbose loading information).
 
 ```{r message=FALSE}
-sites_possible <- sf::st_read(
-  "data/sites/GRTS_PossibleCaARU_sample_draw_base.shp", 
-  quiet = TRUE) |> 
-  dplyr::mutate(source = "GRTS_PossibleCaARU_sample_draw_base") |> 
-  dplyr::mutate(fullID = paste(SampleID, ID, source, sep = "_"))
+# NOTE: this is commented out as it is now outdated (pre 2025)
+# sites_possible <- sf::st_read(
+#   "data/sites/GRTS_PossibleCaARU_sample_draw_base.shp", 
+#   quiet = TRUE) |> 
+#   dplyr::mutate(source = "GRTS_PossibleCaARU_sample_draw_base") |> 
+#   dplyr::mutate(fullID = paste(SampleID, ID, source, sep = "_"))
+# 
+# additional_sites <- readr::read_csv("data/sites/Selected_Peat_Sites.csv") |> 
+#   sf::st_as_sf(coords=c("lon_WGS84", "lat_WGS84"), crs = 4326)  |> 
+#   sf::st_transform(sf::st_crs(sites_possible)) |> 
+#   dplyr::mutate(source = "Selected_Peat_Sites") |> 
+#   dplyr::mutate(fullID = paste(SampleID, ID, source, sep = "_"))
+# 
+# all_sites <- sites_possible |> 
+#   dplyr::bind_rows(additional_sites)
+```
 
-additional_sites <- readr::read_csv("data/sites/Selected_Peat_Sites.csv") |> 
-  sf::st_as_sf(coords=c("lon_WGS84", "lat_WGS84"), crs = 4326)  |> 
-  sf::st_transform(sf::st_crs(sites_possible)) |> 
-  dplyr::mutate(source = "Selected_Peat_Sites") |> 
-  dplyr::mutate(fullID = paste(SampleID, ID, source, sep = "_"))
+## Loading the ecodistict and land cover data
 
-all_sites <- sites_possible |> 
-  dplyr::bind_rows(additional_sites)
+We load the ecodistrict polygons. We use its crs to reproject the new data as well. We also load the two halves of the far north land cover dataset, along with the the attribute table of land cover classes. Finally we load the ecodistrict data and select for the relevant lowlands disctrict, coded as 1028.
 
+```{r message=FALSE}
 ecodistrict <- sf::st_read(
   "data/ecodistrict_shp/Ecodistricts/ecodistricts.shp", 
   quiet = TRUE) |> 
@@ -42,6 +58,21 @@ lu_dat <- readr::read_csv("data/land_use/attr_table_northen_ont_lc.txt") |>
   dplyr::mutate(cats = as.factor(code))
 ```
 
+## Loading the sites data (2025)
+
+We load the possible sites. Using the new 2025 sites:
+
+```{r message=FALSE}
+all_new_sites <- readr::read_csv("data/sites/All Posssible Peat Sites 2025 2.0.csv") |>
+  sf::st_as_sf(coords=c("x", "y"), crs = 4326) |>
+  sf::st_transform(crs = sf::st_crs(ecodistrict)) |>
+  dplyr::mutate(source = "2025_peat_sites") |> 
+  dplyr::mutate(fullID = paste(OBJECTID, SampleID, source, sep = "_"))
+
+# Check that all points are in Ecodistrict 1028
+stopifnot(all(all_new_sites$Ecodistric == 1028))
+```
+
 ## Plotting spatial data
 
 It is always a good idea to try and plot spatial data before any processing.
@@ -49,7 +80,7 @@ It is always a good idea to try and plot spatial data before any processing.
 ```{r fig.width=13}
 ggplot() +
   geom_sf(data = ecodistrict) +
-  geom_sf(data = sf::st_transform(all_sites, 
+  geom_sf(data = sf::st_transform(all_new_sites, 
                                   sf::st_crs(ecodistrict))) +
   theme_bw()
 ```
@@ -136,7 +167,7 @@ res_points <- mapply(FUN = compute_land_cover,
                      c(`1 m` = 1, `50 m` = 50,
                        `100 m` = 100, `1 km` = 1000),
                      MoreArgs = list(
-                       sites = sites_possible,
+                       sites = all_new_sites,
                        lu_16 = lu_16, lu_17 = lu_17, lu_dat = lu_dat),
                      SIMPLIFY = F) |>
   dplyr::bind_rows(.id = 'scale') |>
@@ -151,21 +182,25 @@ knitr::kable(res_points)
 We also want to do the same operation for the ecodistrict to allow for comparison. We don't need to use exact extraction, insteadt the crop and mask each raster. This operation is costly so we write out the rasters and load them again (see unrendered code).
 
 ```{r eval=FALSE}
-ecodistrict_16 <- sf::st_transform(ecodistrict, sf::st_crs(lu_16))
-ecodistrict_17 <- sf::st_transform(ecodistrict, sf::st_crs(lu_17))
+# NOTE: commented out as it is lengthy and intermediate outputs are already present
 
-lu_16_crop <- raster::crop(lu_16, ecodistrict_16)
-lu_16_crop_mask <- raster::mask(lu_16_crop, ecodistrict_16)
-
-lu_17_crop <- raster::crop(lu_17, ecodistrict_17)
-lu_17_crop_mask <- raster::mask(lu_17_crop, ecodistrict_17)
+# ecodistrict_16 <- sf::st_transform(ecodistrict, sf::st_crs(lu_16))
+# ecodistrict_17 <- sf::st_transform(ecodistrict, sf::st_crs(lu_17))
+# 
+# lu_16_crop <- raster::crop(lu_16, ecodistrict_16)
+# lu_16_crop_mask <- raster::mask(lu_16_crop, ecodistrict_16)
+# 
+# lu_17_crop <- raster::crop(lu_17, ecodistrict_17)
+# lu_17_crop_mask <- raster::mask(lu_17_crop, ecodistrict_17)
 ```
 
 ```{r eval=FALSE, include=FALSE}
-raster::writeRaster(lu_16_crop_mask, "data/lu_16_crop_mask.tif", 
-                    overwrite=TRUE)
-raster::writeRaster(lu_17_crop_mask, "data/lu_17_crop_mask.tif", 
-                    overwrite=TRUE)
+# NOTE: commented out as it is lengthy and intermediate outputs are already present
+
+# raster::writeRaster(lu_16_crop_mask, "data/lu_16_crop_mask.tif",
+#                     overwrite=TRUE)
+# raster::writeRaster(lu_17_crop_mask, "data/lu_17_crop_mask.tif",
+#                     overwrite=TRUE)
 ```
 
 ```{r eval=TRUE, include=FALSE}
@@ -176,13 +211,17 @@ lu_17_crop_mask <- raster::raster("data/lu_17_crop_mask.tif")
 We can then get the frequencies of values. This operation is also costly so we write out the objects and load them again (see unrendered code).
 
 ```{r eval=FALSE}
-lu_16_freq <- raster::freq(lu_16_crop_mask)
-lu_17_freq <- raster::freq(lu_17_crop_mask)
+# NOTE: commented out as it is lengthy and intermediate outputs are already present
+
+# lu_16_freq <- raster::freq(lu_16_crop_mask)
+# lu_17_freq <- raster::freq(lu_17_crop_mask)
 ```
 
 ```{r eval=FALSE, include=FALSE}
-saveRDS(lu_16_freq, "data/lu_16_freq.rds")
-saveRDS(lu_17_freq, "data/lu_17_freq.rds")
+# NOTE: commented out as it is lengthy and intermediate outputs are already present
+
+# saveRDS(lu_16_freq, "data/lu_16_freq.rds")
+# saveRDS(lu_17_freq, "data/lu_17_freq.rds")
 ```
 
 ```{r eval=TRUE, include=FALSE}
@@ -228,7 +267,7 @@ res_points_by_site <-
          c(`1 m` = 1, `50 m` = 50,
            `100 m` = 100, `1 km` = 1000),
          MoreArgs = list(
-           sites = sites_possible,
+           sites = all_new_sites,
            lu_16 = lu_16, lu_17 = lu_17, lu_dat = lu_dat),
            summarise_all = FALSE,
          SIMPLIFY = F) |>
@@ -256,7 +295,7 @@ DT::datatable(res_points_by_site)
 We save this table.
 
 ```{r}
-readr::write_csv(res_points_by_site, "outputs/res_points_by_site.csv")
+readr::write_csv(res_points_by_site, "outputs/res_points_by_site_2025.csv")
 ```
 
 ## Results
